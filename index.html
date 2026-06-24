@@ -553,8 +553,17 @@ function calcola(){
   }
   const dataUscita = new Date(nascita); dataUscita.setFullYear(nascita.getFullYear()+etaUscita);
 
-  // --- anzianità di servizio (effettiva = servizio + riscatti/ricongiunzioni/cumulo) ---
-  let anniServizio = anniTra(arruol, dataUscita) + riscatti;
+  // --- anzianità di servizio ---
+  // se nota l'anzianità militare EFFETTIVA (somma dei periodi dall'estratto INPS),
+  // si proietta da lì fino all'uscita; così le carriere frammentate (con buchi nel
+  // servizio) non vengono sovrastimate. Altrimenti stima da (uscita − arruolamento).
+  let anniServizio;
+  if(window._anzMil != null && window._anzMilY){
+    const etaEstratto = window._anzMilY - nascita.getFullYear();
+    anniServizio = window._anzMil + Math.max(0, etaUscita - etaEstratto) + riscatti;
+  } else {
+    anniServizio = anniTra(arruol, dataUscita) + riscatti;
+  }
   if(anniServizio < 0) anniServizio = 0;
   const anniDiritto = anniServizio + maggiorazione;   // ai fini del diritto a pensione
 
@@ -841,15 +850,23 @@ async function importXML(file){
     }
     if(!nasc) nasc = cfBirthDate(txt);
     if(nasc){ $('nascita').value = nasc; window._nascDaFile=true; info.push('data di nascita'); }
-    // Gestione Pubblica = servizio militare/statale: prima data utile + imponibile più recente
-    let inizio=null, baseXML=null, annoMax=0;
+    // Gestione Pubblica = servizio militare/statale: prima data, imponibile più
+    // recente, e ANZIANITÀ EFFETTIVA = somma dei periodi utili (gestisce le carriere
+    // frammentate, es. Esercito → privato → Carabinieri, senza contare i buchi).
+    let inizio=null, baseXML=null, annoMax=0, anzA=0, anzM=0, anzG=0;
     [...doc.querySelectorAll('RigaContributiGestionePubblica')].forEach(r=>{
       const dal=(r.querySelector('Dal')?.textContent||'').trim();
       const y=(dal.match(/(\d{4})/)||[])[1];
       if(y){ const yy=+y; if(!inizio||yy<inizio) inizio=yy;
         const ret=numIt(r.querySelector('RetribuzioneEuro')?.textContent||'');
         if(yy>=annoMax && ret>1000){ annoMax=yy; baseXML=ret; } }
+      anzA += parseFloat(r.querySelector('AnniContribUtiliMisura')?.textContent)||0;
+      anzM += parseFloat(r.querySelector('MesiContribUtiliMisura')?.textContent)||0;
+      anzG += parseFloat(r.querySelector('GiorniContribUtiliMisura')?.textContent)||0;
     });
+    const anzMil = anzA + anzM/12 + anzG/360;
+    const annoEstr = +(doc.querySelector('DataEmissioneEstratto Anno')?.textContent) || annoMax;
+    if(anzMil>0.1){ window._anzMil=anzMil; window._anzMilY=annoEstr; }
     // Regime Generale (settore privato) e fondi: contributi in gestione separata
     let settRG=0, mesiRG=0; const anniPriv=[];
     [...doc.querySelectorAll('RegimeGenerale RigaContributi')].forEach(r=>{
@@ -891,6 +908,7 @@ function aggiornaRiepilogo(){
     <div class="it"><span class="k">Grado</span><span class="v">${g.n}<span class="src">selezionato sopra</span></span></div>
     <div class="it"><span class="k">Data di nascita</span><span class="v ${$('nascita').value?'':'todo'}">${fmtDate($('nascita').value)}${src(window._nascDaFile,'dai documenti')}</span></div>
     <div class="it"><span class="k">Inizio servizio</span><span class="v">${annoServ}${src(window._arruolDaFile,'da estratto conto')}</span></div>
+    ${window._anzMil?`<div class="it"><span class="k">Anzianità militare effettiva</span><span class="v">${window._anzMil.toFixed(1)} anni<span class="src">al ${window._anzMilY} · somma periodi (esclusi i buchi)</span></span></div>`:''}
     <div class="it"><span class="k">Base pensionabile</span><span class="v">${base?eur(base):'—'}<span class="src">${baseSrc}</span></span></div>
     <div class="it"><span class="k">Base buonuscita (TFS)</span><span class="v">${eur(window._impTFS || (g.param||0)*PUNTO_PARAM*13/12*0.80)}<span class="src">${window._impTFS?'da CU · punto 21':'stima da grado'}</span></span></div>
     ${redd?`<div class="it"><span class="k">Reddito annuo (fiscale)</span><span class="v">${eur(redd)}<span class="src">da CU · punto 1</span></span></div>`:''}
