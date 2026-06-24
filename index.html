@@ -661,11 +661,17 @@ function setBase(val){
   if(val>5000 && val<200000){ $('base').value = Math.round(val); return true; }
   return false;
 }
-function findAmountNear(text, re){
-  const m = re.exec(text); if(!m) return null;
-  const after = text.slice(m.index + m[0].length, m.index + m[0].length + 70);
-  const num = /(\d{1,3}(?:\.\d{3})*,\d{2}|\d{4,6},\d{2}|\d{4,6})/.exec(after);
-  return num ? numIt(num[1]) : null;
+// nei moduli NoiPA/INPS le etichette e i valori sono separati: si cerca il primo
+// importo in formato valuta (con separatore migliaia e decimali) dopo l'etichetta,
+// così si saltano i numeri di campo (18, 19, …) e si prende il valore vero.
+function firstCurrencyAfter(text, label, win){
+  win = win || 1400;
+  const re = new RegExp(label,'i'); const m = re.exec(text); if(!m) return null;
+  const slice = text.slice(m.index + m[0].length, m.index + m[0].length + win);
+  const all = slice.match(/\d{1,3}(?:\.\d{3})+,\d{2}/g);
+  if(!all) return null;
+  for(const a of all){ const v = numIt(a); if(v >= 1000) return v; }
+  return null;
 }
 
 async function importPDF(file){
@@ -680,11 +686,11 @@ async function importPDF(file){
       text += ' ' + c.items.map(i=>i.str).join(' ');
     }
     text = text.replace(/\s+/g,' ');
-    const imp  = findAmountNear(text,/imponibile\s+pensionistic\w*/i)
-              || findAmountNear(text,/imponibile\s+previdenzial\w*/i);
-    const redd = findAmountNear(text,/redditi?\s+di\s+lavoro\s+dipendent\w*/i);
+    const imp  = firstCurrencyAfter(text,'imponibile pensionistic')
+              || firstCurrencyAfter(text,'imponibile previdenzial');
+    const redd = firstCurrencyAfter(text,'Redditi di lavoro dipendent');
     const done=[];
-    if(imp && setBase(imp)) done.push('imponibile pensionistico '+eur0(imp)+' € → base pensionabile');
+    if(imp && setBase(imp)){ window._baseDaCU=true; done.push('imponibile pensionistico '+eur0(imp)+' € → base pensionabile'); }
     if(redd) done.push('reddito dipendente '+eur0(redd)+' €');
     if(done.length){ st.className='state ok'; st.textContent='✓ '+done.join(' · '); render(); }
     else { st.className='state err'; st.textContent='Nessun importo riconosciuto (può essere un PDF-immagine): compila a mano.'; }
@@ -698,16 +704,23 @@ async function importXML(file){
     const doc = new DOMParser().parseFromString(txt,'application/xml');
     if(doc.querySelector('parsererror')) throw new Error('file XML non valido');
     const info=[];
-    const years = [...txt.matchAll(/\b(19[6-9]\d|20[0-3]\d)\b/g)].map(m=>+m[1]).filter(y=>y>=1960&&y<=2030);
-    if(years.length){
-      const minY=Math.min(...years);
-      $('arruol').value = minY+'-01-01';
-      info.push('inizio servizio ~'+minY);
+    // Gestione Pubblica = servizio militare/statale: prima data utile + imponibile più recente
+    let inizio=null, baseXML=null, annoMax=0;
+    [...doc.querySelectorAll('RigaContributiGestionePubblica')].forEach(r=>{
+      const dal=(r.querySelector('Dal')?.textContent||'').trim();
+      const y=(dal.match(/(\d{4})/)||[])[1];
+      if(y){ const yy=+y; if(!inizio||yy<inizio) inizio=yy;
+        const ret=numIt(r.querySelector('RetribuzioneEuro')?.textContent||'');
+        if(yy>=annoMax && ret>1000){ annoMax=yy; baseXML=ret; } }
+    });
+    // ripiego: se manca la Gestione Pubblica, primo anno presente nel file
+    if(!inizio){
+      const years=[...txt.matchAll(/\b(19[6-9]\d|20[0-3]\d)\b/g)].map(m=>+m[1]).filter(y=>y>=1960&&y<=2030);
+      if(years.length) inizio=Math.min(...years);
     }
-    const amounts = [...txt.matchAll(/(\d{1,3}(?:\.\d{3})+,\d{2}|\d{4,6},\d{2})/g)]
-                      .map(m=>numIt(m[1])).filter(v=>v>5000&&v<200000);
-    if(amounts.length && setBase(Math.max(...amounts)))
-      info.push('imponibile '+eur0(Math.max(...amounts))+' € → base (verifica!)');
+    if(inizio){ $('arruol').value=inizio+'-01-01'; info.push('inizio servizio '+inizio); }
+    if(baseXML && !window._baseDaCU && setBase(baseXML))
+      info.push('imponibile '+eur0(baseXML)+' € → base (verifica)');
     if(info.length){ st.className='state ok'; st.textContent='✓ '+info.join(' · '); render(); }
     else { st.className='state err'; st.textContent='Schema XML non riconosciuto: compila a mano.'; }
   }catch(e){ st.className='state err'; st.textContent='XML non leggibile: '+e.message; }
