@@ -609,11 +609,12 @@ function calcola(){
   const pensioneNetta = pensioneLorda - irpef - add;
 
   // --- BUONUSCITA (IBU) ---
-  // si calcola sulla retribuzione utile al TFS (stipendio tabellare + 13ª, IIS
-  // conglobata), NON sulla base pensionabile che include indennità non-TFS.
-  const stipTab = (g.param||0) * PUNTO_PARAM;     // stipendio tabellare annuo del grado
-  const retrTFS = stipTab * 13/12;                // include la tredicesima
-  const ibu = (retrTFS / 12) * 0.80 * anniServizio;
+  // base imponibile TFS (già all'80%): dal dato reale della CU (punto 21) se
+  // disponibile, altrimenti stimata dallo stipendio tabellare del grado (×13/12×80%).
+  // NON è la base pensionabile, che include indennità non utili al TFS.
+  const stipTab = (g.param||0) * PUNTO_PARAM;
+  const baseTFS = window._impTFS || (stipTab * 13/12 * 0.80);
+  const ibu = (baseTFS / 12) * anniServizio;
 
   // --- AUSILIARIA ---
   // stipendio pari grado in servizio ≈ base / tasso-pensionabile (≈ base / 0.92)
@@ -764,14 +765,23 @@ function firstCurrencyAfter(text, label, win){
   return null;
 }
 
-// imponibile pensionistico (CU punto 18): nella sezione "Gestione Dipendenti
-// Pubblici" è il valore più alto (gli altri sono contributi/TFS, sue frazioni).
-// Robusto rispetto all'ordine dei campi e ai moduli di conguaglio.
-function cuImpPens(text){
-  const i = text.search(/gestione\s+dipendenti\s+pubblici|imponibile\s+pensionistic/i);
-  if(i<0) return null;
-  const vals = (text.slice(i).match(/\d{1,3}(?:\.\d{3})+,\d{2}/g)||[]).map(numIt).filter(v=>v>3000&&v<300000);
-  return vals.length ? Math.max(...vals) : null;
+// estrae dalla sezione "Gestione Dipendenti Pubblici" della CU sia l'imponibile
+// pensionistico (base pensione, punto 18) sia l'imponibile TFS (base buonuscita,
+// punto 21). Robusto su CU diverse: NON usa la posizione dei campi (che cambia),
+// ma relazioni invarianti — l'imponibile pensionistico è il valore massimo; quello
+// TFS è il valore il cui contributo adiacente vale ~9,60% (aliquota TFS fissa).
+function cuPrevidenziale(text){
+  const i = text.search(/gestione\s+dipendenti\s+pubblici|imponibil\w*\s+pensionistic/i);
+  if(i<0) return {impPens:null, impTFS:null};
+  const vals = (text.slice(i).match(/\d{1,3}(?:\.\d{3})*,\d{1,2}/g)||[]).map(numIt);
+  const big = vals.filter(v=>v>5000 && v<300000);
+  const impPens = big.length ? Math.max(...big) : null;
+  let impTFS=null;
+  for(let k=0;k<vals.length-1;k++){
+    const v=vals[k], next=vals[k+1];
+    if(v>3000 && v<300000 && next>0 && Math.abs(next/v - 0.096) < 0.015 && (!impTFS||v>impTFS)) impTFS=v;
+  }
+  return {impPens, impTFS};
 }
 
 // ricava la data di nascita dal codice fiscale (sempre presente in CU ed estratto)
@@ -799,13 +809,15 @@ async function importPDF(file){
       text += ' ' + c.items.map(i=>i.str).join(' ');
     }
     text = text.replace(/\s+/g,' ');
-    const imp  = cuImpPens(text) || firstCurrencyAfter(text,'imponibile previdenzial');
+    const prev = cuPrevidenziale(text);
+    const imp  = prev.impPens || firstCurrencyAfter(text,'imponibile previdenzial');
     const redd = firstCurrencyAfter(text,'Redditi di lavoro dipendent');
     const nasc = cfBirthDate(text);
     const done=[];
     if(nasc){ $('nascita').value=nasc; window._nascDaFile=true; done.push('data di nascita'); }
-    if(imp && setBase(imp)){ window._baseDaCU=true; done.push('imponibile pensionistico '+eur0(imp)+' € → base pensionabile'); }
-    if(redd){ window._redd=redd; done.push('reddito dipendente '+eur0(redd)+' €'); }
+    if(imp && setBase(imp)){ window._baseDaCU=true; done.push('imponibile pensionistico '+eur0(imp)+' € → base'); }
+    if(prev.impTFS){ window._impTFS=prev.impTFS; done.push('imponibile TFS '+eur0(prev.impTFS)+' € → buonuscita'); }
+    if(redd){ window._redd=redd; done.push('reddito '+eur0(redd)+' €'); }
     if(done.length){ st.className='state ok'; st.textContent='✓ '+done.join(' · '); aggiornaRiepilogo(); render(); }
     else { st.className='state err'; st.textContent='Nessun importo riconosciuto (può essere un PDF-immagine): compila a mano.'; }
   }catch(e){ st.className='state err'; st.textContent='PDF non leggibile: '+e.message+'. Compila a mano.'; }
@@ -880,6 +892,7 @@ function aggiornaRiepilogo(){
     <div class="it"><span class="k">Data di nascita</span><span class="v ${$('nascita').value?'':'todo'}">${fmtDate($('nascita').value)}${src(window._nascDaFile,'dai documenti')}</span></div>
     <div class="it"><span class="k">Inizio servizio</span><span class="v">${annoServ}${src(window._arruolDaFile,'da estratto conto')}</span></div>
     <div class="it"><span class="k">Base pensionabile</span><span class="v">${base?eur(base):'—'}<span class="src">${baseSrc}</span></span></div>
+    <div class="it"><span class="k">Base buonuscita (TFS)</span><span class="v">${eur(window._impTFS || (g.param||0)*PUNTO_PARAM*13/12*0.80)}<span class="src">${window._impTFS?'da CU · punto 21':'stima da grado'}</span></span></div>
     ${redd?`<div class="it"><span class="k">Reddito annuo (fiscale)</span><span class="v">${eur(redd)}<span class="src">da CU · punto 1</span></span></div>`:''}
     ${window._anniRG>0.1?`<div class="it"><span class="k">Altri contributi · regime generale</span><span class="v todo">~${window._anniRG.toFixed(1)} anni<span class="src">${window._periodoRG} · privato, da valutare per cumulo</span></span></div>`:''}
     ${window._anniRG>0.1?`<button class="edit" id="inclRG" style="background:#fbf6e9;border-color:var(--gold)">${window._inclRG?'✓ inclusi nel calcolo (cumulo)':'Includi ~'+window._anniRG.toFixed(1)+' anni privati nel calcolo (cumulo) ▸'}</button>`:''}
