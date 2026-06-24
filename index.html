@@ -182,14 +182,20 @@
       <div class="card-h"><span class="n">1</span><h2>Carica i tuoi documenti</h2></div>
       <div class="card-b">
 
-        <div class="field" style="margin-bottom:16px">
+        <div class="field" style="margin-bottom:14px">
           <label for="grado"><b>1. Scegli il grado</b>
             <span class="hint">— imposta limite d'età, stipendio tabellare (per la buonuscita) e base indicativa</span></label>
           <select id="grado"></select>
         </div>
 
+        <div class="field" style="margin-bottom:16px">
+          <label for="riscatti"><b>2. Anni riscattati / ricongiunti</b>
+            <span class="hint">— riscatto (laurea, leva) + cumulo di contributi in altre gestioni. Lascia 0 se non sai.</span></label>
+          <input type="number" id="riscatti" value="0" min="0" max="30" step="0.5">
+        </div>
+
         <div class="import-box">
-          <h3>2. Carica i documenti</h3>
+          <h3>3. Carica i documenti</h3>
           <p class="sub">È il modo consigliato: carica i due documenti e i dati vengono letti da soli. La lettura avviene <b>solo nel tuo browser</b>, nessun dato viene inviato altrove. In alternativa puoi compilare a mano qui sotto.</p>
 
           <label class="drop">
@@ -232,16 +238,10 @@
           <input type="number" id="base" value="29000" min="0" step="100">
         </div>
 
-        <div class="row2">
-          <div class="field">
-            <label for="riscatti">Anni riscattati / ricongiunti
-              <span class="hint">(laurea, militare, ecc.)</span></label>
-            <input type="number" id="riscatti" value="0" min="0" max="20" step="0.5">
-          </div>
-          <div class="field">
-            <label for="crescita">Crescita stipendio %/anno</label>
-            <input type="number" id="crescita" value="1.5" min="0" max="6" step="0.1">
-          </div>
+        <div class="field">
+          <label for="crescita">Crescita stipendio %/anno
+            <span class="hint">(reale, per la proiezione del montante)</span></label>
+          <input type="number" id="crescita" value="1.5" min="0" max="6" step="0.1">
         </div>
 
         <div class="field">
@@ -282,7 +282,7 @@
         </details>
 
         <details class="adv">
-          <summary>Maggiorazioni militari e ricongiunzioni</summary>
+          <summary>Maggiorazioni militari (1/5, 1/3)</summary>
           <div class="row2">
             <div class="field">
               <label for="maggIst">Anni con indennità d'istituto
@@ -295,12 +295,7 @@
               <input type="number" id="maggVolo" value="0" min="0" max="40" step="1">
             </div>
           </div>
-          <div class="field">
-            <label for="ricong">Anni da ricongiungere / computare
-              <span class="hint">— contributi in altra gestione (es. privato)</span></label>
-            <input type="number" id="ricong" value="0" min="0" max="20" step="0.5">
-          </div>
-          <p class="sm muted" style="margin:2px 0 0">Le maggiorazioni (max <b>5 anni</b> complessivi) anticipano il <b>diritto</b> a pensione; aumentano l'importo solo nel sistema retributivo (anzianità ante-1996), non nel contributivo.</p>
+          <p class="sm muted" style="margin:2px 0 0">Le maggiorazioni (max <b>5 anni</b> complessivi) anticipano il <b>diritto</b> a pensione; aumentano l'importo solo nel sistema retributivo (anzianità ante-1996), non nel contributivo. La ricongiunzione/cumulo di contributi va invece nel campo <b>«Anni riscattati / ricongiunti»</b> in cima.</p>
         </details>
 
           </div>
@@ -541,7 +536,6 @@ function calcola(){
   const addiz   = (+$('addiz').value||0)/100;
   const maggIst = +$('maggIst').value || 0;
   const maggVolo= +$('maggVolo').value || 0;
-  const ricong  = +$('ricong').value || 0;
   const scen    = document.querySelector('#scenSeg button.on').dataset.s;
 
   if(isNaN(nascita) || isNaN(arruol) || !base){ return null; }
@@ -554,13 +548,13 @@ function calcola(){
   if(scen==='limite')      etaUscita = g.limite;
   else if(scen==='anticipata') etaUscita = Math.max(50, Math.min(g.limite, +$('etaAnt').value));
   else { // max anzianità: ~42 anni ai fini del DIRITTO (le maggiorazioni anticipano)
-    const etaAl42 = anniTra(nascita, arruol) + (42 - riscatti - ricong - maggiorazione);
+    const etaAl42 = anniTra(nascita, arruol) + (42 - riscatti - maggiorazione);
     etaUscita = Math.min(g.limite, Math.max(57, Math.round(etaAl42)));
   }
   const dataUscita = new Date(nascita); dataUscita.setFullYear(nascita.getFullYear()+etaUscita);
 
-  // --- anzianità di servizio (effettiva = servizio + riscatti + ricongiunzioni) ---
-  let anniServizio = anniTra(arruol, dataUscita) + riscatti + ricong;
+  // --- anzianità di servizio (effettiva = servizio + riscatti/ricongiunzioni/cumulo) ---
+  let anniServizio = anniTra(arruol, dataUscita) + riscatti;
   if(anniServizio < 0) anniServizio = 0;
   const anniDiritto = anniServizio + maggiorazione;   // ai fini del diritto a pensione
 
@@ -628,7 +622,7 @@ function calcola(){
       ? Math.max(0, 0.50 * (stipPariGrado - pensioneLorda)) : 0;
 
   return {
-    grado:g, etaUscita, dataUscita, anniServizio, anniDiritto, maggiorazione, ricong,
+    grado:g, etaUscita, dataUscita, anniServizio, anniDiritto, maggiorazione,
     anniAnte96, anniContr, sistema, aliquotaRetr, quotaRetr, montante, cf, quotaContr,
     pensioneLorda, pensioneNetta, irpef, add, tassoSost, capApplicato,
     ibu, indAusiliariaAnnua, stipPariGrado, base, scen
@@ -891,7 +885,7 @@ function aggiornaRiepilogo(){
     ${window._anniRG>0.1?`<button class="edit" id="inclRG" style="background:#fbf6e9;border-color:var(--gold)">${window._inclRG?'✓ inclusi nel calcolo (cumulo)':'Includi ~'+window._anniRG.toFixed(1)+' anni privati nel calcolo (cumulo) ▸'}</button>`:''}
     <button class="edit" id="editBtn">Correggi o completa a mano ▸</button>`;
   $('editBtn').addEventListener('click',()=>{ const m=$('manualBox'); m.open=true; m.scrollIntoView({behavior:'smooth',block:'start'}); });
-  if($('inclRG')) $('inclRG').addEventListener('click',()=>{ $('ricong').value=window._anniRG.toFixed(1); window._inclRG=true; aggiornaRiepilogo(); render(); });
+  if($('inclRG')) $('inclRG').addEventListener('click',()=>{ $('riscatti').value=window._anniRG.toFixed(1); window._inclRG=true; aggiornaRiepilogo(); render(); });
 }
 
 /* ===================================================================
