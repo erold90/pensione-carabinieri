@@ -252,6 +252,28 @@
           </div>
         </details>
 
+        <details class="adv">
+          <summary>Maggiorazioni militari e ricongiunzioni</summary>
+          <div class="row2">
+            <div class="field">
+              <label for="maggIst">Anni con indennità d'istituto
+                <span class="hint">— magg. 1/5 (L. 284/77)</span></label>
+              <input type="number" id="maggIst" value="0" min="0" max="45" step="1">
+            </div>
+            <div class="field">
+              <label for="maggVolo">Anni di servizio di volo
+                <span class="hint">— magg. 1/3 (art. 20 DPR 1092)</span></label>
+              <input type="number" id="maggVolo" value="0" min="0" max="40" step="1">
+            </div>
+          </div>
+          <div class="field">
+            <label for="ricong">Anni da ricongiungere / computare
+              <span class="hint">— contributi in altra gestione (es. privato)</span></label>
+            <input type="number" id="ricong" value="0" min="0" max="20" step="0.5">
+          </div>
+          <p class="sm muted" style="margin:2px 0 0">Le maggiorazioni (max <b>5 anni</b> complessivi) anticipano il <b>diritto</b> a pensione; aumentano l'importo solo nel sistema retributivo (anzianità ante-1996), non nel contributivo.</p>
+        </details>
+
         <button class="calc-btn" id="go">Calcola il trattamento</button>
       </div>
     </section>
@@ -314,6 +336,18 @@
         </div>
       </details>
 
+      <details class="acc"><summary>Maggiorazioni di servizio e ricongiunzioni</summary>
+        <div class="body">
+          Ai militari spettano <b>maggiorazioni</b> dell'anzianità per particolari condizioni di servizio:
+          <ul>
+            <li><b>1/5</b> per il servizio prestato con indennità di istituto (L. 284/77, art. 3) — ogni anno vale 1,2 anni;</li>
+            <li><b>1/3</b> per il servizio di volo (art. 20 DPR 1092/73) e altre voci operative;</li>
+            <li>tetto <b>complessivo di 5 anni</b> dal 1/1/1998 (D.Lgs. 165/97).</li>
+          </ul>
+          <b>Distinzione fondamentale:</b> nel sistema <b>retributivo</b> (anzianità ante-1996) la maggiorazione vale sia sul <b>diritto</b> sia sulla <b>misura</b> (importo); nel sistema <b>contributivo</b> vale <b>solo sul diritto</b> — anticipa l'accesso ma non aumenta l'assegno (Circ. INPS · giurisprudenza Corte dei Conti). La <b>ricongiunzione/computo</b> porta invece nella gestione i contributi versati in altre casse (es. periodi nel settore privato).
+        </div>
+      </details>
+
       <details class="acc"><summary>Compilazione rapida da file (estratto conto INPS / CU)</summary>
         <div class="body">
           Puoi precompilare i campi caricando i tuoi documenti — la lettura avviene <b>solo nel browser</b>, nessun file viene caricato online.
@@ -327,7 +361,9 @@
       <details class="acc"><summary>Fonti normative consultate</summary>
         <div class="body sm">
           <ul>
-            <li>DPR 29/12/1973 n. 1092, art. 54 — trattamento di quiescenza personale militare</li>
+            <li>DPR 29/12/1973 n. 1092, artt. 19-20-54 — quiescenza militari, maggiorazioni, servizio di volo</li>
+            <li>L. 28/6/1977 n. 284, art. 3 — maggiorazione 1/5 per servizio d'istituto</li>
+            <li>D.Lgs. 30/4/1997 n. 165 — tetto di 5 anni alle maggiorazioni dal 1/1/1998</li>
             <li>L. 8/8/1995 n. 335 (riforma Dini) — sistema contributivo / misto</li>
             <li>D.Lgs. 15/3/2010 n. 66 (Codice dell'Ordinamento Militare), artt. 928, 992</li>
             <li>Corte dei Conti Sez. Riunite 2021 · Circ. INPS n. 107/2021 — aliquota 2,44%</li>
@@ -459,23 +495,30 @@ function calcola(){
   const crescita= (+$('crescita').value||0)/100;
   const capit   = (+$('capit').value||0)/100;
   const addiz   = (+$('addiz').value||0)/100;
+  const maggIst = +$('maggIst').value || 0;
+  const maggVolo= +$('maggVolo').value || 0;
+  const ricong  = +$('ricong').value || 0;
   const scen    = document.querySelector('#scenSeg button.on').dataset.s;
 
   if(isNaN(nascita) || isNaN(arruol) || !base){ return null; }
+
+  // --- maggiorazioni militari: tetto complessivo 5 anni (D.Lgs. 165/97) ---
+  const maggiorazione = Math.min(5, maggIst*0.20 + maggVolo*(1/3));
 
   // --- età di uscita secondo lo scenario ---
   let etaUscita;
   if(scen==='limite')      etaUscita = g.limite;
   else if(scen==='anticipata') etaUscita = Math.max(50, Math.min(g.limite, +$('etaAnt').value));
-  else { // max anzianità: ~42 anni di servizio
-    const etaAl42 = anniTra(nascita, arruol) + 42 - riscatti;
+  else { // max anzianità: ~42 anni ai fini del DIRITTO (le maggiorazioni anticipano)
+    const etaAl42 = anniTra(nascita, arruol) + (42 - riscatti - ricong - maggiorazione);
     etaUscita = Math.min(g.limite, Math.max(57, Math.round(etaAl42)));
   }
   const dataUscita = new Date(nascita); dataUscita.setFullYear(nascita.getFullYear()+etaUscita);
 
-  // --- anzianità di servizio ---
-  let anniServizio = anniTra(arruol, dataUscita) + riscatti;
+  // --- anzianità di servizio (effettiva = servizio + riscatti + ricongiunzioni) ---
+  let anniServizio = anniTra(arruol, dataUscita) + riscatti + ricong;
   if(anniServizio < 0) anniServizio = 0;
+  const anniDiritto = anniServizio + maggiorazione;   // ai fini del diritto a pensione
 
   // --- ripartizione retributivo / contributivo ---
   const fine95 = new Date('1995-12-31');
@@ -493,9 +536,11 @@ function calcola(){
   else sistema = 'misto';
 
   // --- QUOTA RETRIBUTIVA (art. 54) ---
+  // nel retributivo la maggiorazione vale anche sulla MISURA; nel contributivo
+  // vale solo sul diritto (già riflesso in anniDiritto), non aumenta l'importo.
   let aliquotaRetr = 0, quotaRetr = 0;
   if(anniAnte96 > 0){
-    aliquotaRetr = Math.min(TETTO_RETR, anniAnte96 * REND_MILITARE);
+    aliquotaRetr = Math.min(TETTO_RETR, (anniAnte96 + maggiorazione) * REND_MILITARE);
     quotaRetr = base * aliquotaRetr;
   }
 
@@ -535,8 +580,8 @@ function calcola(){
       ? Math.max(0, 0.50 * (stipPariGrado - pensioneLorda)) : 0;
 
   return {
-    grado:g, etaUscita, dataUscita, anniServizio, anniAnte96, anniContr,
-    sistema, aliquotaRetr, quotaRetr, montante, cf, quotaContr,
+    grado:g, etaUscita, dataUscita, anniServizio, anniDiritto, maggiorazione, ricong,
+    anniAnte96, anniContr, sistema, aliquotaRetr, quotaRetr, montante, cf, quotaContr,
     pensioneLorda, pensioneNetta, irpef, add, tassoSost, capApplicato,
     ibu, indAusiliariaAnnua, stipPariGrado, base, scen
   };
@@ -610,6 +655,7 @@ function render(){
     <span class="badge ${sysBadge[0]}">${sysBadge[1]}</span>
     <span class="badge b-retr">Uscita a ${r.etaUscita} anni · ${dataF}</span>
     <span class="badge b-retr">${r.anniServizio.toFixed(1)} anni di servizio</span>
+    ${r.maggiorazione>0?`<span class="badge b-misto">+${r.maggiorazione.toFixed(1)} magg. → ${r.anniDiritto.toFixed(1)} anni ai fini del diritto</span>`:''}
   </div>
 
   <h3 class="sec">Composizione della pensione</h3>
@@ -639,6 +685,9 @@ function render(){
     html += `</tbody></table>`;
   }
 
+  if(r.maggiorazione>0 && r.sistema==='contributivo'){
+    html += `<div class="note"><b>Maggiorazioni.</b> I <b>${r.maggiorazione.toFixed(1)} anni</b> di maggiorazione portano l'anzianità utile a <b>${r.anniDiritto.toFixed(1)} anni ai fini del diritto</b> (puoi accedere prima alla pensione), ma nel sistema <b>contributivo non aumentano l'importo</b> dell'assegno: valgono sulla misura solo per la quota retributiva ante-1996.</div>`;
+  }
   html += `<div class="note">
     <b>Nota.</b> Base pensionabile usata: <b>${eur(r.base)}</b>/anno. Per una stima attendibile inserisci il tuo
     <b>imponibile previdenziale reale</b> (cedolino NoiPA o mod. PA04). Capitalizzazione e crescita stipendio sono
