@@ -1,14 +1,17 @@
 # Calcolo Pensione Carabinieri
 
+**Live: https://erold90.github.io/pensione-carabinieri/**
+
 Simulatore **non ufficiale** del trattamento di quiescenza per il personale dell'Arma dei Carabinieri.
-Single-file (`index.html`), nessuna dipendenza, nessun dato che lascia il browser.
+Single-file (`index.html`), nessuna dipendenza (eccetto PDF.js da CDN per la CU), nessun dato che lascia il browser.
 
 ## Cosa calcola
 - **Pensione** col sistema misto militare: quota retributiva (art. 54 DPR 1092/1973, aliquota 2,44%) + quota contributiva (montante × coefficiente di trasformazione 2025-2026); rileva automaticamente contributivo puro / misto in base alla data di arruolamento.
 - **Buonuscita (IBU)** ex-ENPAS: 1/12 dell'80% della retribuzione utile per anno.
 - **Indennità di ausiliaria** (art. 992 COM): 50% della differenza pensione / pari grado in servizio.
 - **Scenari a confronto**: anticipata / limite d'età / permanenza.
-- **Import da file (client-side)**: Certificazione Unica PDF (legge il punto 18 «Imponibile pensionistico» via PDF.js) ed estratto conto INPS XML (anno di inizio servizio + imponibile). Nessun dato lascia il browser.
+- **Maggiorazioni militari**: 1/5 servizio d'istituto (L. 284/77), 1/3 servizio di volo (art. 20 DPR 1092/73), tetto 5 anni (D.Lgs. 165/97). Distinzione diritto/misura: nel contributivo vale solo sul diritto, nel retributivo ante-1996 anche sull'importo. Più campo ricongiunzione/computo.
+- **Import da file (client-side)**: Certificazione Unica PDF (legge il punto 18 «Imponibile pensionistico» via PDF.js) ed estratto conto INPS XML (anno di inizio servizio + imponibile, sezione Gestione Pubblica). Nessun dato lascia il browser.
 
 Copre tutti i ruoli (Appuntati e Carabinieri, Sovrintendenti, Ispettori, Ufficiali) con limiti d'età per grado.
 
