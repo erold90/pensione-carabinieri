@@ -63,6 +63,22 @@
   details.adv{margin-top:6px;border-top:1px dashed var(--line);padding-top:12px}
   details.adv summary{cursor:pointer;font-size:.82rem;color:var(--navy-3);font-weight:600;margin-bottom:10px}
 
+  /* ---------- Import box ---------- */
+  .import-box{border:1px solid var(--gold-soft);background:linear-gradient(180deg,#fbf6e9,#fdfbf4);
+    border-radius:12px;padding:14px;margin-bottom:18px}
+  .import-box h3{margin:0 0 4px;font-family:var(--font);font-size:.95rem;color:var(--navy)}
+  .import-box .sub{font-size:.76rem;color:#6b5a30;margin:0 0 11px}
+  .drop{display:block;border:1px dashed #c9b67e;border-radius:9px;padding:10px 12px;margin-bottom:9px;
+    background:#fff;cursor:pointer;transition:border .15s,background .15s}
+  .drop:hover{border-color:var(--gold);background:#fffdf6}
+  .drop .dt{font-size:.82rem;font-weight:700;color:var(--navy)}
+  .drop .dd{font-size:.72rem;color:var(--muted)}
+  .drop input{display:none}
+  .drop .state{font-size:.72rem;margin-top:4px;font-weight:600}
+  .drop .state.ok{color:var(--ok)} .drop .state.err{color:var(--bad)} .drop .state.wait{color:var(--warn)}
+  .import-warn{font-size:.72rem;color:#7a3b1c;background:#fdeee2;border:1px solid #f0c9a8;
+    border-radius:7px;padding:7px 9px;margin-top:4px}
+
   /* ---------- Results ---------- */
   .placeholder{padding:46px 24px;text-align:center;color:var(--muted)}
   .placeholder svg{width:46px;height:46px;opacity:.3;margin-bottom:10px}
@@ -140,6 +156,29 @@
     <section class="card" aria-label="Dati di calcolo">
       <div class="card-h"><span class="n">1</span><h2>I tuoi dati</h2></div>
       <div class="card-b">
+
+        <div class="import-box">
+          <h3>Compilazione rapida da file</h3>
+          <p class="sub">Carica i tuoi documenti per precompilare i campi. La lettura avviene <b>solo nel tuo browser</b>: nessun dato viene inviato altrove.</p>
+
+          <label class="drop">
+            <span class="dt">Estratto conto INPS (XML)</span>
+            <span class="dd">Area riservata INPS → «Consultazione estratto conto contributivo/previdenziale» → scarica XML</span>
+            <input type="file" id="fileXML" accept=".xml,text/xml">
+            <span class="state" id="stXML"></span>
+          </label>
+
+          <label class="drop">
+            <span class="dt">Certificazione Unica (CU in PDF)</span>
+            <span class="dd">NoiPA → «Documenti Personali» → «Certificazione Unica». Legge il punto 18 «Imponibile pensionistico»</span>
+            <input type="file" id="filePDF" accept="application/pdf,.pdf">
+            <span class="state" id="stPDF"></span>
+          </label>
+
+          <div class="import-warn">
+            <b>Nota per il comparto Difesa:</b> l'estratto conto INPS dei militari è spesso incompleto o non aggiornato. Verifica sempre i valori importati e correggili a mano se necessario.
+          </div>
+        </div>
 
         <div class="field">
           <label for="grado">Grado / qualifica
@@ -275,6 +314,16 @@
         </div>
       </details>
 
+      <details class="acc"><summary>Compilazione rapida da file (estratto conto INPS / CU)</summary>
+        <div class="body">
+          Puoi precompilare i campi caricando i tuoi documenti — la lettura avviene <b>solo nel browser</b>, nessun file viene caricato online.
+          <ul>
+            <li><b>Certificazione Unica (PDF)</b> — da NoiPA (Documenti Personali → Certificazione Unica). Si legge il <b>punto 18 «Imponibile pensionistico»</b> (sezione 2), che è la base pensionabile corretta per i dipendenti pubblici. Se la CU è un PDF-immagine (scansione), il riconoscimento può fallire.</li>
+            <li><b>Estratto conto INPS (XML)</b> — dall'area riservata INPS. Serve a ricavare l'anno di inizio servizio (e quindi la ripartizione retributivo/contributivo). <b>Attenzione</b>: per il comparto Difesa è spesso incompleto — verifica sempre.</li>
+          </ul>
+        </div>
+      </details>
+
       <details class="acc"><summary>Fonti normative consultate</summary>
         <div class="body sm">
           <ul>
@@ -303,6 +352,7 @@
   </div>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 /* ===================================================================
    TABELLE NORMATIVE (verificate giugno 2026)
@@ -596,6 +646,71 @@ function render(){
 }
 
 /* ===================================================================
+   IMPORT DA FILE (interamente client-side)
+=================================================================== */
+function numIt(s){
+  if(s==null) return NaN;
+  s = String(s).replace(/[^\d.,-]/g,'');
+  if(s.indexOf(',')>-1) s = s.replace(/\./g,'').replace(',','.');     // formato IT 1.234,56
+  return parseFloat(s);
+}
+function setBase(val){
+  if(val>5000 && val<200000){ $('base').value = Math.round(val); return true; }
+  return false;
+}
+function findAmountNear(text, re){
+  const m = re.exec(text); if(!m) return null;
+  const after = text.slice(m.index + m[0].length, m.index + m[0].length + 70);
+  const num = /(\d{1,3}(?:\.\d{3})*,\d{2}|\d{4,6},\d{2}|\d{4,6})/.exec(after);
+  return num ? numIt(num[1]) : null;
+}
+
+async function importPDF(file){
+  const st=$('stPDF'); st.className='state wait'; st.textContent='Lettura della CU in corso…';
+  try{
+    if(!window.pdfjsLib) throw new Error('libreria PDF non disponibile (connessione?)');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    let text='';
+    for(let p=1;p<=pdf.numPages;p++){
+      const c = await (await pdf.getPage(p)).getTextContent();
+      text += ' ' + c.items.map(i=>i.str).join(' ');
+    }
+    text = text.replace(/\s+/g,' ');
+    const imp  = findAmountNear(text,/imponibile\s+pensionistic\w*/i)
+              || findAmountNear(text,/imponibile\s+previdenzial\w*/i);
+    const redd = findAmountNear(text,/redditi?\s+di\s+lavoro\s+dipendent\w*/i);
+    const done=[];
+    if(imp && setBase(imp)) done.push('imponibile pensionistico '+eur0(imp)+' € → base pensionabile');
+    if(redd) done.push('reddito dipendente '+eur0(redd)+' €');
+    if(done.length){ st.className='state ok'; st.textContent='✓ '+done.join(' · '); render(); }
+    else { st.className='state err'; st.textContent='Nessun importo riconosciuto (può essere un PDF-immagine): compila a mano.'; }
+  }catch(e){ st.className='state err'; st.textContent='PDF non leggibile: '+e.message+'. Compila a mano.'; }
+}
+
+async function importXML(file){
+  const st=$('stXML'); st.className='state wait'; st.textContent='Lettura estratto conto…';
+  try{
+    const txt = await file.text();
+    const doc = new DOMParser().parseFromString(txt,'application/xml');
+    if(doc.querySelector('parsererror')) throw new Error('file XML non valido');
+    const info=[];
+    const years = [...txt.matchAll(/\b(19[6-9]\d|20[0-3]\d)\b/g)].map(m=>+m[1]).filter(y=>y>=1960&&y<=2030);
+    if(years.length){
+      const minY=Math.min(...years);
+      $('arruol').value = minY+'-01-01';
+      info.push('inizio servizio ~'+minY);
+    }
+    const amounts = [...txt.matchAll(/(\d{1,3}(?:\.\d{3})+,\d{2}|\d{4,6},\d{2})/g)]
+                      .map(m=>numIt(m[1])).filter(v=>v>5000&&v<200000);
+    if(amounts.length && setBase(Math.max(...amounts)))
+      info.push('imponibile '+eur0(Math.max(...amounts))+' € → base (verifica!)');
+    if(info.length){ st.className='state ok'; st.textContent='✓ '+info.join(' · '); render(); }
+    else { st.className='state err'; st.textContent='Schema XML non riconosciuto: compila a mano.'; }
+  }catch(e){ st.className='state err'; st.textContent='XML non leggibile: '+e.message; }
+}
+
+/* ===================================================================
    INIT / EVENTI
 =================================================================== */
 (function init(){
@@ -623,6 +738,10 @@ function render(){
       $('etaAntWrap').style.display = b.dataset.s==='anticipata' ? 'block':'none';
     });
   });
+
+  // import da file
+  $('fileXML').addEventListener('change', e=>{ if(e.target.files[0]) importXML(e.target.files[0]); });
+  $('filePDF').addEventListener('change', e=>{ if(e.target.files[0]) importPDF(e.target.files[0]); });
 
   $('go').addEventListener('click', render);
 })();

@@ -8,8 +8,11 @@ Single-file (`index.html`), nessuna dipendenza, nessun dato che lascia il browse
 - **Buonuscita (IBU)** ex-ENPAS: 1/12 dell'80% della retribuzione utile per anno.
 - **Indennità di ausiliaria** (art. 992 COM): 50% della differenza pensione / pari grado in servizio.
 - **Scenari a confronto**: anticipata / limite d'età / permanenza.
+- **Import da file (client-side)**: Certificazione Unica PDF (legge il punto 18 «Imponibile pensionistico» via PDF.js) ed estratto conto INPS XML (anno di inizio servizio + imponibile). Nessun dato lascia il browser.
 
 Copre tutti i ruoli (Appuntati e Carabinieri, Sovrintendenti, Ispettori, Ufficiali) con limiti d'età per grado.
+
+> L'import della CU usa PDF.js da CDN: l'unico componente che richiede connessione (la libreria, non il file, che resta locale). I PDF-immagine/scansioni non sono leggibili. L'estratto conto INPS del comparto Difesa è spesso incompleto — il valore importato va sempre verificato.
 
 ## Riferimenti normativi
 DPR 1092/1973 art. 54 · L. 335/1995 · D.Lgs. 66/2010 (COM) artt. 928, 992 · Corte dei Conti SS.RR. 2021 / Circ. INPS 107/2021 · DM 20/11/2024 (coefficienti) · L. di Bilancio 2026.
