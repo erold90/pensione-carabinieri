@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calcolo Pensione Carabinieri · Simulatore TFS, Ausiliaria e Buonuscita</title>
+<meta name="description" content="Simulatore non ufficiale del trattamento di quiescenza per il personale dell'Arma dei Carabinieri: pensione (sistema misto retributivo/contributivo), buonuscita IBU e indennità di ausiliaria. Aggiornato 2026.">
+<style>
+  :root{
+    --navy:#0f2340; --navy-2:#16315a; --navy-3:#1f4276;
+    --gold:#c9a961; --gold-soft:#e3cf9c;
+    --cream:#f7f4ec; --paper:#ffffff;
+    --ink:#1a2433; --muted:#5d6b7e; --line:#e2e0d6;
+    --ok:#2f7d55; --warn:#b4791f; --bad:#a23b3b;
+    --radius:14px; --shadow:0 6px 28px rgba(15,35,64,.10);
+    --shadow-sm:0 2px 10px rgba(15,35,64,.07);
+    --font:"Georgia","Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--navy-3)}
+
+  /* ---------- Header ---------- */
+  header.site{background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 70%);color:#fff;border-bottom:3px solid var(--gold)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  .hero{display:flex;gap:20px;align-items:center;padding:26px 0}
+  .crest{flex:0 0 64px;width:64px;height:64px;border-radius:50%;border:2px solid var(--gold);
+    display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#1c3a68,#0c1d36)}
+  .crest svg{width:38px;height:38px}
+  .hero h1{font-family:var(--font);font-size:1.5rem;margin:0;letter-spacing:.2px}
+  .hero p{margin:4px 0 0;color:var(--gold-soft);font-size:.92rem}
+  .tag{display:inline-block;margin-top:7px;font-size:.7rem;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--navy);background:var(--gold);padding:3px 10px;border-radius:20px;font-weight:700}
+
+  /* ---------- Layout ---------- */
+  main{padding:30px 0 70px}
+  .grid{display:grid;grid-template-columns:1fr;gap:22px}
+  @media(min-width:900px){.grid{grid-template-columns:minmax(0,420px) minmax(0,1fr)}}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .card-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .card-h h2{font-family:var(--font);font-size:1.06rem;margin:0;color:var(--navy)}
+  .card-h .n{flex:0 0 26px;width:26px;height:26px;border-radius:50%;background:var(--navy);color:var(--gold);
+    display:grid;place-items:center;font-size:.82rem;font-weight:700}
+  .card-b{padding:18px 20px}
+
+  /* ---------- Form ---------- */
+  .field{margin-bottom:15px}
+  .field label{display:block;font-size:.82rem;font-weight:600;color:var(--navy);margin-bottom:5px}
+  .field .hint{font-weight:400;color:var(--muted);font-size:.76rem}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:.95rem;
+    font-family:var(--sans);background:#fcfbf7;color:var(--ink);transition:border .15s,box-shadow .15s}
+  input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,169,97,.22);background:#fff}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fcfbf7}
+  .seg button{flex:1;border:0;background:transparent;padding:9px 6px;font-size:.82rem;cursor:pointer;color:var(--muted);font-weight:600}
+  .seg button.on{background:var(--navy);color:#fff}
+  .calc-btn{width:100%;margin-top:6px;padding:14px;border:0;border-radius:10px;cursor:pointer;
+    background:linear-gradient(135deg,var(--gold),#b8923f);color:#22160a;font-weight:800;font-size:1rem;letter-spacing:.3px;
+    box-shadow:0 4px 14px rgba(201,169,97,.4)}
+  .calc-btn:active{transform:translateY(1px)}
+  details.adv{margin-top:6px;border-top:1px dashed var(--line);padding-top:12px}
+  details.adv summary{cursor:pointer;font-size:.82rem;color:var(--navy-3);font-weight:600;margin-bottom:10px}
+
+  /* ---------- Results ---------- */
+  .placeholder{padding:46px 24px;text-align:center;color:var(--muted)}
+  .placeholder svg{width:46px;height:46px;opacity:.3;margin-bottom:10px}
+  .res-top{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:18px}
+  @media(min-width:560px){.res-top{grid-template-columns:repeat(3,1fr)}}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:15px;background:linear-gradient(180deg,#fff,#fbf9f2)}
+  .stat .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+  .stat .v{font-family:var(--font);font-size:1.5rem;color:var(--navy);margin:5px 0 1px;font-weight:700}
+  .stat .s{font-size:.78rem;color:var(--muted)}
+  .stat.primary{background:linear-gradient(160deg,var(--navy),var(--navy-2));border-color:var(--navy)}
+  .stat.primary .k{color:var(--gold-soft)} .stat.primary .v{color:#fff} .stat.primary .s{color:#c9d4e4}
+
+  .badge{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:20px;margin:2px 4px 2px 0}
+  .badge.b-contr{background:#eaf3ee;color:var(--ok)}
+  .badge.b-misto{background:#fbf1dd;color:var(--warn)}
+  .badge.b-retr{background:#eef2fa;color:var(--navy-3)}
+
+  table.det{width:100%;border-collapse:collapse;margin-top:4px;font-size:.88rem}
+  table.det td{padding:8px 6px;border-bottom:1px solid var(--line)}
+  table.det td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:var(--navy)}
+  table.det tr.sum td{border-top:2px solid var(--navy);border-bottom:0;font-weight:800;padding-top:11px}
+  table.det tr.sum td:last-child{color:var(--navy)}
+  .muted{color:var(--muted)} .sm{font-size:.8rem}
+
+  h3.sec{font-family:var(--font);color:var(--navy);font-size:1rem;margin:24px 0 8px;border-left:3px solid var(--gold);padding-left:10px}
+
+  .scen{width:100%;border-collapse:collapse;font-size:.86rem;margin-top:6px}
+  .scen th,.scen td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .scen th{background:var(--navy);color:#fff;font-weight:600;font-size:.76rem;text-align:right}
+  .scen th:first-child,.scen td:first-child{text-align:left}
+  .scen tr.hi td{background:#fbf6e9;font-weight:700}
+  .scen .pill{font-size:.68rem;background:var(--gold);color:#22160a;padding:1px 7px;border-radius:10px;font-weight:700}
+
+  .note{background:#fbf6e9;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:.82rem;color:#5b4a23;margin-top:16px}
+  .note b{color:#3f3214}
+
+  /* ---------- Info / fonti ---------- */
+  .info{margin-top:26px}
+  .info .card-b{column-gap:30px}
+  .acc{border-bottom:1px solid var(--line)}
+  .acc summary{cursor:pointer;padding:12px 2px;font-weight:600;color:var(--navy);font-family:var(--font)}
+  .acc[open] summary{color:var(--navy-3)}
+  .acc .body{padding:2px 2px 14px;font-size:.88rem;color:#374254}
+  .acc .body ul{margin:8px 0 0;padding-left:18px}
+  .acc .body li{margin-bottom:5px}
+  code.k{background:#eef1f6;padding:1px 6px;border-radius:5px;font-size:.85em}
+
+  footer{background:var(--navy);color:#aeb9c9;font-size:.8rem;padding:26px 0;border-top:3px solid var(--gold)}
+  footer a{color:var(--gold-soft)}
+  .disc{font-size:.76rem;color:#8c98a8;margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap hero">
+    <div class="crest" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.4">
+        <path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.3 7.2 17.7l.9-5.4L4.2 8.5l5.4-.8z" fill="#c9a961" stroke="none" opacity=".9"/>
+        <circle cx="12" cy="12" r="11"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Calcolo Pensione · Arma dei Carabinieri</h1>
+      <p>Simulatore del trattamento di quiescenza, buonuscita e ausiliaria per il personale militare</p>
+      <span class="tag">Strumento non ufficiale · Aggiornato giugno 2026</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+
+    <!-- ============ INPUT ============ -->
+    <section class="card" aria-label="Dati di calcolo">
+      <div class="card-h"><span class="n">1</span><h2>I tuoi dati</h2></div>
+      <div class="card-b">
+
+        <div class="field">
+          <label for="grado">Grado / qualifica
+            <span class="hint">— imposta limite d'età e base indicativa</span></label>
+          <select id="grado"></select>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="nascita">Data di nascita</label>
+            <input type="date" id="nascita" value="1985-01-01">
+          </div>
+          <div class="field">
+            <label for="arruol">Arruolamento (servizio effettivo)</label>
+            <input type="date" id="arruol" value="2007-01-01">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="base">Base pensionabile annua lorda (€)
+            <span class="hint">— dal cedolino NoiPA / mod. PA04 (voci pensionabili). Precompilata: modificala.</span></label>
+          <input type="number" id="base" value="29000" min="0" step="100">
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="riscatti">Anni riscattati / ricongiunti
+              <span class="hint">(laurea, militare, ecc.)</span></label>
+            <input type="number" id="riscatti" value="0" min="0" max="20" step="0.5">
+          </div>
+          <div class="field">
+            <label for="crescita">Crescita stipendio %/anno</label>
+            <input type="number" id="crescita" value="1.5" min="0" max="6" step="0.1">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Scenario di uscita</label>
+          <div class="seg" id="scenSeg">
+            <button data-s="limite" class="on">Limite d'età</button>
+            <button data-s="anticipata">Anticipata</button>
+            <button data-s="max">Max anzianità</button>
+          </div>
+        </div>
+
+        <div class="field" id="etaAntWrap" style="display:none">
+          <label for="etaAnt">Età di uscita anticipata (anni)</label>
+          <input type="number" id="etaAnt" value="58" min="50" max="67" step="1">
+        </div>
+
+        <details class="adv">
+          <summary>Parametri avanzati</summary>
+          <div class="row2">
+            <div class="field">
+              <label for="capit">Capitalizzazione montante %/anno
+                <span class="hint">(media PIL)</span></label>
+              <input type="number" id="capit" value="1.8" min="0" max="5" step="0.1">
+            </div>
+            <div class="field">
+              <label for="addiz">Addizionali IRPEF %
+                <span class="hint">(reg.+com.)</span></label>
+              <input type="number" id="addiz" value="2.0" min="0" max="4" step="0.1">
+            </div>
+          </div>
+          <div class="field">
+            <label for="anteSel">Anzianità al 31/12/1995</label>
+            <select id="anteSel">
+              <option value="auto" selected>Calcola automaticamente dalla data di arruolamento</option>
+              <option value="0">Nessuna (interamente contributivo)</option>
+            </select>
+          </div>
+        </details>
+
+        <button class="calc-btn" id="go">Calcola il trattamento</button>
+      </div>
+    </section>
+
+    <!-- ============ OUTPUT ============ -->
+    <section class="card" aria-label="Risultati">
+      <div class="card-h"><span class="n">2</span><h2>Stima del trattamento</h2></div>
+      <div class="card-b" id="out">
+        <div class="placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="1.3">
+            <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
+          <p>Compila i dati a sinistra e premi <b>Calcola</b> per vedere pensione, buonuscita e ausiliaria.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ INFO / NORMATIVA ============ -->
+  <section class="card info">
+    <div class="card-h"><span class="n">i</span><h2>Come funziona il calcolo &amp; riferimenti normativi</h2></div>
+    <div class="card-b">
+
+      <details class="acc"><summary>Sistema di calcolo della pensione (misto retributivo/contributivo)</summary>
+        <div class="body">
+          La pensione del militare segue il <b>sistema misto</b> introdotto dalla riforma Dini (L. 335/1995):
+          <ul>
+            <li><b>Quota retributiva</b> per l'anzianità maturata fino al <b>31/12/1995</b> — si applica l'<b>art. 54 DPR 1092/1973</b>, specifico per i militari, con aliquota di rendimento del <b>2,44% per ogni anno</b> utile (Corte dei Conti Sez. Unite 2021 · Circ. INPS 107/2021).</li>
+            <li><b>Quota contributiva</b> per gli anni dal 1996: il montante (aliquota di computo <b>33%</b>, capitalizzato al tasso PIL) viene moltiplicato per il <b>coefficiente di trasformazione</b> legato all'età di uscita.</li>
+            <li>Chi è entrato in servizio <b>dal 1/1/1996</b> ha una pensione <b>interamente contributiva</b>.</li>
+          </ul>
+          L'art. 54 prevede comunque: 44% della base a 15–20 anni, poi +1,80%/anno fino al tetto dell'<b>80%</b>.
+        </div>
+      </details>
+
+      <details class="acc"><summary>Requisiti di accesso (comparto Sicurezza-Difesa, 2026)</summary>
+        <div class="body">
+          <ul>
+            <li><b>Limite d'età del grado</b>: per i ruoli Appuntati/Carabinieri, Sovrintendenti e Ispettori è di norma <b>60 anni</b>; per gli Ufficiali sale col grado (Colonnello fino a 62, Generali 63–65 — art. 928 COM).</li>
+            <li><b>Anticipata</b> con ~35 anni di servizio + finestra mobile, oppure per <b>massima anzianità contributiva</b> (~41 anni).</li>
+            <li><b>Adeguamento speranza di vita</b>: +3 mesi nel 2026, poi +1 (2027), +4 (2028), +5 (2029), +6 (2030).</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="acc"><summary>Buonuscita — Indennità di Buonuscita (IBU), gestione ex-ENPAS</summary>
+        <div class="body">
+          Per i militari assunti entro il 31/12/2000 si applica l'<b>IBU</b>: pari a <b>1/12 dell'80%</b> della retribuzione contributiva utile (con 13ª) <b>per ogni anno</b> di servizio. Contributo del 9,6% (7,1% ente + 2,5% dipendente). Concorrono anche i <b>6 scatti</b> e la maggiorazione del 18%.
+        </div>
+      </details>
+
+      <details class="acc"><summary>Ausiliaria (art. 992 Codice Ordinamento Militare)</summary>
+        <div class="body">
+          Al raggiungimento del limite d'età il militare transita in <b>ausiliaria per 5 anni</b> (fino a 65 anni se cessa a 60). Spetta un'<b>indennità annua lorda pari al 50% della differenza</b> tra la pensione e il trattamento del pari grado in servizio, oltre alla pensione.
+        </div>
+      </details>
+
+      <details class="acc"><summary>Fonti normative consultate</summary>
+        <div class="body sm">
+          <ul>
+            <li>DPR 29/12/1973 n. 1092, art. 54 — trattamento di quiescenza personale militare</li>
+            <li>L. 8/8/1995 n. 335 (riforma Dini) — sistema contributivo / misto</li>
+            <li>D.Lgs. 15/3/2010 n. 66 (Codice dell'Ordinamento Militare), artt. 928, 992</li>
+            <li>Corte dei Conti Sez. Riunite 2021 · Circ. INPS n. 107/2021 — aliquota 2,44%</li>
+            <li>DM 20/11/2024 — coefficienti di trasformazione biennio 2025-2026</li>
+            <li>L. di Bilancio 2026 — adeguamento requisiti comparto Sicurezza-Difesa</li>
+          </ul>
+        </div>
+      </details>
+
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <b style="color:#fff">Calcolo Pensione Carabinieri</b> — simulatore a fini puramente informativi.
+    <div class="disc">
+      I risultati hanno <b>valore esclusivamente indicativo</b> e non sostituiscono il prospetto ufficiale INPS-Gestione Dipendenti Pubblici (ex-INPDAP) né una consulenza previdenziale. Il calcolo si basa su parametri di legge aggiornati a giugno 2026 e su assunzioni semplificate (capitalizzazione, crescita stipendio, IRPEF). Nessun dato inserito lascia il tuo dispositivo: l'intero calcolo avviene nel browser.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ===================================================================
+   TABELLE NORMATIVE (verificate giugno 2026)
+=================================================================== */
+
+// Coefficienti di trasformazione — DM 20/11/2024, biennio 2025-2026.
+// (*) valori confermati da fonti multiple; (~) ricostruiti dalla tabella
+// 2023-2024 × fattore di riduzione verificato (scostamento < 0,03%).
+const COEFF = {
+  57:0.04204, // *
+  58:0.04308, // ~
+  59:0.04419, // ~
+  60:0.04536, // ~
+  61:0.04661, // *
+  62:0.04795, // *
+  63:0.04936, // *
+  64:0.05088, // *
+  65:0.05250, // *
+  66:0.05423, // *
+  67:0.05608, // *
+  68:0.05809, // ~
+  69:0.06025, // ~
+  70:0.06259, // ~
+  71:0.06510  // *
+};
+function coeff(eta){
+  const e = Math.max(57, Math.min(71, Math.round(eta)));
+  return COEFF[e];
+}
+
+// Gradi dell'Arma: limite d'età cessazione + base pensionabile annua INDICATIVA
+// (stipendio parametrale + IIS + indennità pensionabile; valori-stima 2026,
+//  da sostituire con il proprio imponibile previdenziale reale).
+const GRADI = [
+  {n:"Carabiniere",            ruolo:"Appuntati e Carabinieri", limite:60, base:22000},
+  {n:"Carabiniere Scelto",     ruolo:"Appuntati e Carabinieri", limite:60, base:23000},
+  {n:"Appuntato",              ruolo:"Appuntati e Carabinieri", limite:60, base:24000},
+  {n:"Appuntato Scelto",       ruolo:"Appuntati e Carabinieri", limite:60, base:25000},
+  {n:"Appuntato Scelto Q.S.",  ruolo:"Appuntati e Carabinieri", limite:60, base:26500},
+  {n:"Vice Brigadiere",        ruolo:"Sovrintendenti",          limite:60, base:25500},
+  {n:"Brigadiere",             ruolo:"Sovrintendenti",          limite:60, base:26500},
+  {n:"Brigadiere Capo",        ruolo:"Sovrintendenti",          limite:60, base:27800},
+  {n:"Maresciallo",            ruolo:"Ispettori",               limite:60, base:27000},
+  {n:"Maresciallo Ordinario",  ruolo:"Ispettori",               limite:60, base:28200},
+  {n:"Maresciallo Capo",       ruolo:"Ispettori",               limite:60, base:29500},
+  {n:"Maresciallo Maggiore",   ruolo:"Ispettori",               limite:60, base:31000},
+  {n:"Luogotenente",           ruolo:"Ispettori",               limite:60, base:33500},
+  {n:"Sottotenente",           ruolo:"Ufficiali",               limite:60, base:30000},
+  {n:"Tenente",                ruolo:"Ufficiali",               limite:60, base:33000},
+  {n:"Capitano",               ruolo:"Ufficiali",               limite:60, base:38000},
+  {n:"Maggiore",               ruolo:"Ufficiali",               limite:60, base:43000},
+  {n:"Tenente Colonnello",     ruolo:"Ufficiali",               limite:60, base:50000},
+  {n:"Colonnello",             ruolo:"Ufficiali",               limite:62, base:58000},
+  {n:"Generale di Brigata",    ruolo:"Ufficiali",               limite:63, base:72000},
+  {n:"Generale di Divisione",  ruolo:"Ufficiali",               limite:65, base:84000},
+];
+
+// Scaglioni IRPEF 2026 (3 aliquote)
+const IRPEF = [
+  {fino:28000, al:0.23},
+  {fino:50000, al:0.35},
+  {fino:Infinity, al:0.43}
+];
+const ALIQ_COMPUTO = 0.33;   // aliquota di computo contributiva dip. pubblici
+const REND_MILITARE = 0.0244; // aliquota di rendimento retributiva (art.54)
+const TETTO_RETR = 0.80;      // tetto aliquota retributiva
+
+/* ===================================================================
+   UTILITY
+=================================================================== */
+const $ = id => document.getElementById(id);
+const eur = n => (Math.round(n)).toLocaleString('it-IT') + " €";
+const eur0 = n => (Math.round(n)).toLocaleString('it-IT');
+function anniTra(d1, d2){ return (d2 - d1) / (365.25*24*3600*1000); }
+
+function irpefLorda(imponibile){
+  let t=0, prev=0;
+  for(const s of IRPEF){
+    if(imponibile>prev){
+      const q = Math.min(imponibile, s.fino) - prev;
+      t += q * s.al; prev = s.fino;
+    } else break;
+  }
+  return t;
+}
+
+/* ===================================================================
+   MOTORE DI CALCOLO
+=================================================================== */
+function calcola(){
+  const g = GRADI[+$('grado').value];
+  const nascita = new Date($('nascita').value);
+  const arruol  = new Date($('arruol').value);
+  const base    = +$('base').value;
+  const riscatti= +$('riscatti').value || 0;
+  const crescita= (+$('crescita').value||0)/100;
+  const capit   = (+$('capit').value||0)/100;
+  const addiz   = (+$('addiz').value||0)/100;
+  const scen    = document.querySelector('#scenSeg button.on').dataset.s;
+
+  if(isNaN(nascita) || isNaN(arruol) || !base){ return null; }
+
+  // --- età di uscita secondo lo scenario ---
+  let etaUscita;
+  if(scen==='limite')      etaUscita = g.limite;
+  else if(scen==='anticipata') etaUscita = Math.max(50, Math.min(g.limite, +$('etaAnt').value));
+  else { // max anzianità: ~42 anni di servizio
+    const etaAl42 = anniTra(nascita, arruol) + 42 - riscatti;
+    etaUscita = Math.min(g.limite, Math.max(57, Math.round(etaAl42)));
+  }
+  const dataUscita = new Date(nascita); dataUscita.setFullYear(nascita.getFullYear()+etaUscita);
+
+  // --- anzianità di servizio ---
+  let anniServizio = anniTra(arruol, dataUscita) + riscatti;
+  if(anniServizio < 0) anniServizio = 0;
+
+  // --- ripartizione retributivo / contributivo ---
+  const fine95 = new Date('1995-12-31');
+  let anniAnte96;
+  const anteSel = $('anteSel').value;
+  if(anteSel==='0') anniAnte96 = 0;
+  else anniAnte96 = arruol < fine95 ? anniTra(arruol, fine95) : 0;
+  // riscatti pre-96 non distinguibili: assegnati al contributivo per prudenza
+  if(anniAnte96 > anniServizio) anniAnte96 = anniServizio;
+  const anniContr = Math.max(0, anniServizio - anniAnte96);
+
+  let sistema;
+  if(anniAnte96 <= 0) sistema = 'contributivo';
+  else if(anniAnte96 >= 18) sistema = 'misto-retr';
+  else sistema = 'misto';
+
+  // --- QUOTA RETRIBUTIVA (art. 54) ---
+  let aliquotaRetr = 0, quotaRetr = 0;
+  if(anniAnte96 > 0){
+    aliquotaRetr = Math.min(TETTO_RETR, anniAnte96 * REND_MILITARE);
+    quotaRetr = base * aliquotaRetr;
+  }
+
+  // --- QUOTA CONTRIBUTIVA (montante × coefficiente) ---
+  // ricostruzione del montante anno per anno, retrocedendo lo stipendio
+  let montante = 0;
+  const anniC = Math.round(anniContr);
+  for(let k=0;k<anniC;k++){
+    // stipendio dell'anno (k=0 = ultimo anno; più indietro = più basso)
+    const stipAnno = base / Math.pow(1+crescita, (anniC-1-k));
+    montante += stipAnno * ALIQ_COMPUTO;
+    montante *= (1+capit); // capitalizzazione fino all'uscita
+  }
+  const cf = coeff(etaUscita);
+  const quotaContr = montante * cf;
+
+  // --- PENSIONE ---
+  let pensioneLorda = quotaRetr + quotaContr;
+  // cap di garanzia: non superi l'80% della base
+  const capPensione = base * TETTO_RETR;
+  let capApplicato = false;
+  if(pensioneLorda > capPensione){ pensioneLorda = capPensione; capApplicato = true; }
+  const tassoSost = pensioneLorda / base; // tasso di sostituzione
+
+  // IRPEF
+  const irpef = irpefLorda(pensioneLorda);
+  const add   = pensioneLorda * addiz;
+  const pensioneNetta = pensioneLorda - irpef - add;
+
+  // --- BUONUSCITA (IBU) ---
+  const ibu = (base * TETTO_RETR / 12) * anniServizio;
+
+  // --- AUSILIARIA ---
+  // stipendio pari grado in servizio ≈ base / tasso-pensionabile (≈ base / 0.92)
+  const stipPariGrado = base / 0.92;
+  const indAusiliariaAnnua = scen==='limite'
+      ? Math.max(0, 0.50 * (stipPariGrado - pensioneLorda)) : 0;
+
+  return {
+    grado:g, etaUscita, dataUscita, anniServizio, anniAnte96, anniContr,
+    sistema, aliquotaRetr, quotaRetr, montante, cf, quotaContr,
+    pensioneLorda, pensioneNetta, irpef, add, tassoSost, capApplicato,
+    ibu, indAusiliariaAnnua, stipPariGrado, base, scen
+  };
+}
+
+/* ===================================================================
+   SCENARI A CONFRONTO
+=================================================================== */
+function scenari(){
+  const out=[];
+  const g = GRADI[+$('grado').value];
+  const nascita = new Date($('nascita').value);
+  const arruol  = new Date($('arruol').value);
+  const baseSnap = $('base').value, scenSnap = document.querySelector('#scenSeg button.on').dataset.s, etaSnap=$('etaAnt').value;
+
+  const list=[
+    {key:'anticipata', eta:Math.max(57,g.limite-2), lab:'Anticipata (−2)'},
+    {key:'limite', eta:g.limite, lab:'Limite d\'età'},
+    {key:'oltre', eta:Math.min(67,g.limite+3), lab:'Permanenza (+3)'},
+  ];
+  for(const it of list){
+    // forza scenario anticipata con età custom
+    document.querySelector('#scenSeg button.on').classList.remove('on');
+    document.querySelector('[data-s="anticipata"]').classList.add('on');
+    $('etaAnt').value = it.eta;
+    const r = calcola();
+    if(r) out.push({lab:it.lab, eta:it.eta, r});
+  }
+  // ripristino UI
+  document.querySelectorAll('#scenSeg button').forEach(b=>b.classList.toggle('on', b.dataset.s===scenSnap));
+  $('etaAnt').value = etaSnap;
+  return out;
+}
+
+/* ===================================================================
+   RENDER
+=================================================================== */
+function render(){
+  const r = calcola();
+  const el = $('out');
+  if(!r){ el.innerHTML = '<div class="placeholder"><p>Controlla i dati inseriti (date e base pensionabile).</p></div>'; return; }
+
+  const sysBadge = {
+    'contributivo':['b-contr','Sistema contributivo'],
+    'misto':['b-misto','Sistema misto'],
+    'misto-retr':['b-retr','Misto (retr. fino 2011)']
+  }[r.sistema];
+
+  const dataF = r.dataUscita.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+
+  let html = `
+  <div class="res-top">
+    <div class="stat primary">
+      <div class="k">Pensione netta</div>
+      <div class="v">${eur0(r.pensioneNetta/13)}</div>
+      <div class="s">€/mese × 13 · ${eur(r.pensioneNetta)}/anno</div>
+    </div>
+    <div class="stat">
+      <div class="k">Buonuscita (IBU)</div>
+      <div class="v">${eur0(r.ibu)}</div>
+      <div class="s">una tantum, lordo</div>
+    </div>
+    <div class="stat">
+      <div class="k">${r.scen==='limite'?'Indennità ausiliaria':'Pensione lorda'}</div>
+      <div class="v">${r.scen==='limite'?eur0(r.indAusiliariaAnnua):eur0(r.pensioneLorda)}</div>
+      <div class="s">${r.scen==='limite'?'+'+eur(r.indAusiliariaAnnua/12)+'/mese per 5 anni':'annua, ante imposte'}</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:6px">
+    <span class="badge ${sysBadge[0]}">${sysBadge[1]}</span>
+    <span class="badge b-retr">Uscita a ${r.etaUscita} anni · ${dataF}</span>
+    <span class="badge b-retr">${r.anniServizio.toFixed(1)} anni di servizio</span>
+  </div>
+
+  <h3 class="sec">Composizione della pensione</h3>
+  <table class="det">
+    ${r.quotaRetr>0?`<tr><td>Quota retributiva <span class="muted sm">— ${r.anniAnte96.toFixed(1)} anni ante 1996 · aliquota ${(r.aliquotaRetr*100).toFixed(1)}%</span></td><td>${eur(r.quotaRetr)}</td></tr>`:''}
+    <tr><td>Quota contributiva <span class="muted sm">— montante ${eur0(r.montante)} × coeff. ${(r.cf*100).toFixed(3)}%</span></td><td>${eur(r.quotaContr)}</td></tr>
+    <tr class="sum"><td>Pensione lorda annua${r.capApplicato?' <span class="muted sm">(limitata all\'80%)</span>':''}</td><td>${eur(r.pensioneLorda)}</td></tr>
+    <tr><td class="muted">IRPEF + addizionali stimate</td><td class="muted">− ${eur(r.irpef+r.add)}</td></tr>
+    <tr class="sum"><td>Pensione netta annua</td><td>${eur(r.pensioneNetta)}</td></tr>
+  </table>
+  <p class="sm muted" style="margin-top:6px">Tasso di sostituzione lordo sulla base pensionabile: <b>${(r.tassoSost*100).toFixed(1)}%</b>.</p>
+  `;
+
+  // tabella scenari
+  const sc = scenari();
+  if(sc.length){
+    html += `<h3 class="sec">Scenari a confronto</h3>
+    <table class="scen"><thead><tr>
+      <th>Scenario</th><th>Età</th><th>Anni serv.</th><th>Netta/mese</th><th>Buonuscita</th>
+    </tr></thead><tbody>`;
+    for(const s of sc){
+      const hi = s.eta===r.etaUscita ? ' class="hi"' : '';
+      html += `<tr${hi}><td>${s.lab}${s.eta===r.etaUscita?' <span class="pill">scelto</span>':''}</td>
+        <td>${s.eta}</td><td>${s.r.anniServizio.toFixed(1)}</td>
+        <td>${eur0(s.r.pensioneNetta/13)} €</td><td>${eur0(s.r.ibu)} €</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+
+  html += `<div class="note">
+    <b>Nota.</b> Base pensionabile usata: <b>${eur(r.base)}</b>/anno. Per una stima attendibile inserisci il tuo
+    <b>imponibile previdenziale reale</b> (cedolino NoiPA o mod. PA04). Capitalizzazione e crescita stipendio sono
+    assunzioni modificabili nei parametri avanzati. La quota contributiva è una ricostruzione semplificata del montante.
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+/* ===================================================================
+   INIT / EVENTI
+=================================================================== */
+(function init(){
+  // popola gradi
+  const sel=$('grado');
+  let lastRuolo='';
+  GRADI.forEach((g,i)=>{
+    if(g.ruolo!==lastRuolo){
+      const og=document.createElement('optgroup'); og.label=g.ruolo; sel.appendChild(og); lastRuolo=g.ruolo;
+    }
+    const o=document.createElement('option'); o.value=i; o.textContent=g.n;
+    sel.lastElementChild.appendChild(o);
+  });
+  sel.value = 1; // Carabiniere Scelto come default
+
+  // cambio grado → aggiorna base indicativa
+  sel.addEventListener('change',()=>{ $('base').value = GRADI[+sel.value].base; });
+  $('base').value = GRADI[1].base;
+
+  // segmenti scenario
+  document.querySelectorAll('#scenSeg button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#scenSeg button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      $('etaAntWrap').style.display = b.dataset.s==='anticipata' ? 'block':'none';
+    });
+  });
+
+  $('go').addEventListener('click', render);
+})();
+</script>
+</body>
+</html>
