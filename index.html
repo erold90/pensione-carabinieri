@@ -380,6 +380,18 @@
         </div>
       </details>
 
+      <details class="acc"><summary>Contributi in più gestioni (cumulo, totalizzazione, ricongiunzione)</summary>
+        <div class="body">
+          I contributi del <b>regime generale</b> (lavoro privato) e quelli della <b>Gestione Pubblica</b> (servizio militare) stanno in <b>gestioni separate</b> e non si sommano da soli. Per usarli insieme:
+          <ul>
+            <li><b>Cumulo</b> (L. 228/2012) — <b>gratuito</b>: somma i periodi <b>non coincidenti</b>, ogni gestione liquida la sua quota con le proprie regole. I militari vi accedono mantenendo la disciplina speciale: di norma l'opzione più conveniente.</li>
+            <li><b>Totalizzazione</b> (D.Lgs. 42/2006) — gratuita, ma ricalcola tutto col sistema contributivo.</li>
+            <li><b>Ricongiunzione</b> (L. 29/1979) — onerosa: trasferisce i contributi in un'unica gestione.</li>
+          </ul>
+          Caricando l'estratto conto, il riepilogo mostra gli anni di regime generale rilevati e un pulsante per includerli (cumulo). <b>Attenzione</b>: vanno esclusi i periodi che si <b>sovrappongono</b> al servizio — per il conteggio esatto rivolgiti a un patronato.
+        </div>
+      </details>
+
       <details class="acc"><summary>Compilazione rapida da file (estratto conto INPS / CU)</summary>
         <div class="body">
           Puoi precompilare i campi caricando i tuoi documenti — la lettura avviene <b>solo nel browser</b>, nessun file viene caricato online.
@@ -832,6 +844,17 @@ async function importXML(file){
         const ret=numIt(r.querySelector('RetribuzioneEuro')?.textContent||'');
         if(yy>=annoMax && ret>1000){ annoMax=yy; baseXML=ret; } }
     });
+    // Regime Generale (settore privato) e fondi: contributi in gestione separata
+    let settRG=0, mesiRG=0; const anniPriv=[];
+    [...doc.querySelectorAll('RegimeGenerale RigaContributi')].forEach(r=>{
+      const tipo=(r.querySelector('TipoContributo')?.textContent||'').toLowerCase();
+      const n=parseFloat(r.querySelector('ContributiUtiliDiritto')?.textContent)||0;
+      const a=(r.querySelector('Dal Anno')?.textContent||'').trim(); if(a) anniPriv.push(+a);
+      if(tipo.includes('settiman')) settRG+=n; else if(tipo.includes('mes')) mesiRG+=n;
+    });
+    window._anniRG = settRG/52 + mesiRG/12;
+    window._periodoRG = anniPriv.length ? Math.min(...anniPriv)+'–'+Math.max(...anniPriv) : '';
+    if(window._anniRG>0.1) info.push('regime generale ~'+window._anniRG.toFixed(1)+' anni');
     // ripiego: se manca la Gestione Pubblica, primo anno presente nel file
     if(!inizio){
       const years=[...txt.matchAll(/\b(19[6-9]\d|20[0-3]\d)\b/g)].map(m=>+m[1]).filter(y=>y>=1960&&y<=2030);
@@ -864,8 +887,11 @@ function aggiornaRiepilogo(){
     <div class="it"><span class="k">Inizio servizio</span><span class="v">${annoServ}${src(window._arruolDaFile,'da estratto conto')}</span></div>
     <div class="it"><span class="k">Base pensionabile</span><span class="v">${base?eur(base):'—'}<span class="src">${baseSrc}</span></span></div>
     ${redd?`<div class="it"><span class="k">Reddito annuo (fiscale)</span><span class="v">${eur(redd)}<span class="src">da CU · punto 1</span></span></div>`:''}
+    ${window._anniRG>0.1?`<div class="it"><span class="k">Altri contributi · regime generale</span><span class="v todo">~${window._anniRG.toFixed(1)} anni<span class="src">${window._periodoRG} · privato, da valutare per cumulo</span></span></div>`:''}
+    ${window._anniRG>0.1?`<button class="edit" id="inclRG" style="background:#fbf6e9;border-color:var(--gold)">${window._inclRG?'✓ inclusi nel calcolo (cumulo)':'Includi ~'+window._anniRG.toFixed(1)+' anni privati nel calcolo (cumulo) ▸'}</button>`:''}
     <button class="edit" id="editBtn">Correggi o completa a mano ▸</button>`;
   $('editBtn').addEventListener('click',()=>{ const m=$('manualBox'); m.open=true; m.scrollIntoView({behavior:'smooth',block:'start'}); });
+  if($('inclRG')) $('inclRG').addEventListener('click',()=>{ $('ricong').value=window._anniRG.toFixed(1); window._inclRG=true; aggiornaRiepilogo(); render(); });
 }
 
 /* ===================================================================
