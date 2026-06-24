@@ -14,9 +14,9 @@ Copre tutti i ruoli (Appuntati e Carabinieri, Sovrintendenti, Ispettori, Ufficia
 ## Riferimenti normativi
 DPR 1092/1973 art. 54 · L. 335/1995 · D.Lgs. 66/2010 (COM) artt. 928, 992 · Corte dei Conti SS.RR. 2021 / Circ. INPS 107/2021 · DM 20/11/2024 (coefficienti) · L. di Bilancio 2026.
 
-## Dati da rifinire prima della pubblicazione
-1. **Coefficienti di trasformazione** — 9 valori su 15 sono confermati da fonti multiple; 6 (età 58, 59, 60, 68, 69, 70) sono ricostruiti dalla tabella 2023-2024 (scostamento < 0,03%). Sostituire con i valori esatti del DM 20/11/2024 se si vuole precisione assoluta.
-2. **Base pensionabile per grado** — i valori in `GRADI[]` sono stime 2026 indicative; l'utente inserisce comunque il proprio imponibile reale dal cedolino NoiPA / mod. PA04.
+## Stato dei dati (rifinito)
+1. **Coefficienti di trasformazione** — 10 valori su 15 confermati da fonti multiple (incluso il 60, limite d'età dei ruoli non-ufficiali); 5 (età 58, 59, 68, 69, 70) ricostruiti dalla tabella 2023-2024 × fattore di riduzione verificato, scostamento < 0,03% (≈ < 6 €/anno). Per precisione assoluta sostituire con i valori del DM 20/11/2024.
+2. **Base pensionabile per grado** — `GRADI[]` ora usa il **parametro reale di grado × 195,50 €** (punto parametrale dal 1/1/2024, DPR 53/2025 · Allegato C Min. Difesa) come stipendio tabellare, più indennità pensionabile e assegno funzionale per la stima "a fine carriera". L'utente inserisce comunque il proprio imponibile reale dal cedolino NoiPA / mod. PA04.
 
 ## Deploy su GitHub Pages
 ```bash

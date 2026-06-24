@@ -269,6 +269,12 @@
         </div>
       </details>
 
+      <details class="acc"><summary>Base pensionabile e parametri di grado</summary>
+        <div class="body">
+          La <b>base pensionabile</b> non è lo stipendio netto: è la retribuzione su cui si versano i contributi. Si compone di <b>stipendio tabellare</b> (= parametro di grado × <b>195,50 €</b>, valore del punto dal 1/1/2024, DPR 53/2025), <b>indennità mensile pensionabile</b>, <b>assegno funzionale</b> (dopo 17/27/32 anni) e la quota di IIS conglobata. I valori precaricati sono stime "a fine carriera": <b>per un calcolo attendibile inserisci l'imponibile previdenziale del tuo cedolino NoiPA</b> (o del mod. PA04).
+        </div>
+      </details>
+
       <details class="acc"><summary>Fonti normative consultate</summary>
         <div class="body sm">
           <ul>
@@ -277,6 +283,8 @@
             <li>D.Lgs. 15/3/2010 n. 66 (Codice dell'Ordinamento Militare), artt. 928, 992</li>
             <li>Corte dei Conti Sez. Riunite 2021 · Circ. INPS n. 107/2021 — aliquota 2,44%</li>
             <li>DM 20/11/2024 — coefficienti di trasformazione biennio 2025-2026</li>
+            <li>DPR 24/3/2025 n. 53 — contratto comparto Sicurezza-Difesa 2022-2024 (punto parametrale 195,50 €)</li>
+            <li>Allegato C Min. Difesa — tabella stipendi parametrali per grado</li>
             <li>L. di Bilancio 2026 — adeguamento requisiti comparto Sicurezza-Difesa</li>
           </ul>
         </div>
@@ -301,13 +309,13 @@
 =================================================================== */
 
 // Coefficienti di trasformazione — DM 20/11/2024, biennio 2025-2026.
-// (*) valori confermati da fonti multiple; (~) ricostruiti dalla tabella
-// 2023-2024 × fattore di riduzione verificato (scostamento < 0,03%).
+// (*) confermati da fonti multiple; (~) ricostruiti dalla tabella 2023-2024
+// × fattore di riduzione verificato (scostamento < 0,03% → < 6 €/anno).
 const COEFF = {
   57:0.04204, // *
   58:0.04308, // ~
   59:0.04419, // ~
-  60:0.04536, // ~
+  60:0.04536, // *  (limite d'età ruoli non-ufficiali — doppia conferma)
   61:0.04661, // *
   62:0.04795, // *
   63:0.04936, // *
@@ -325,31 +333,36 @@ function coeff(eta){
   return COEFF[e];
 }
 
-// Gradi dell'Arma: limite d'età cessazione + base pensionabile annua INDICATIVA
-// (stipendio parametrale + IIS + indennità pensionabile; valori-stima 2026,
-//  da sostituire con il proprio imponibile previdenziale reale).
+// Gradi dell'Arma: limite d'età cessazione, parametro di grado e base
+// pensionabile annua INDICATIVA "a fine carriera".
+// param = parametro stipendiale di grado (tab. contratto comparto sicurezza);
+// stipendio tabellare 2024 = param × 195,50 € (punto parametrale dal 1/1/2024,
+// DPR 53/2025 · Allegato C Min. Difesa). La base pensionabile aggiunge
+// l'indennità mensile pensionabile e l'assegno funzionale.
+// Valori da sostituire con il proprio imponibile previdenziale reale (NoiPA/PA04).
+const PUNTO_PARAM = 195.50; // €/anno dal 1/1/2024
 const GRADI = [
-  {n:"Carabiniere",            ruolo:"Appuntati e Carabinieri", limite:60, base:22000},
-  {n:"Carabiniere Scelto",     ruolo:"Appuntati e Carabinieri", limite:60, base:23000},
-  {n:"Appuntato",              ruolo:"Appuntati e Carabinieri", limite:60, base:24000},
-  {n:"Appuntato Scelto",       ruolo:"Appuntati e Carabinieri", limite:60, base:25000},
-  {n:"Appuntato Scelto Q.S.",  ruolo:"Appuntati e Carabinieri", limite:60, base:26500},
-  {n:"Vice Brigadiere",        ruolo:"Sovrintendenti",          limite:60, base:25500},
-  {n:"Brigadiere",             ruolo:"Sovrintendenti",          limite:60, base:26500},
-  {n:"Brigadiere Capo",        ruolo:"Sovrintendenti",          limite:60, base:27800},
-  {n:"Maresciallo",            ruolo:"Ispettori",               limite:60, base:27000},
-  {n:"Maresciallo Ordinario",  ruolo:"Ispettori",               limite:60, base:28200},
-  {n:"Maresciallo Capo",       ruolo:"Ispettori",               limite:60, base:29500},
-  {n:"Maresciallo Maggiore",   ruolo:"Ispettori",               limite:60, base:31000},
-  {n:"Luogotenente",           ruolo:"Ispettori",               limite:60, base:33500},
-  {n:"Sottotenente",           ruolo:"Ufficiali",               limite:60, base:30000},
-  {n:"Tenente",                ruolo:"Ufficiali",               limite:60, base:33000},
-  {n:"Capitano",               ruolo:"Ufficiali",               limite:60, base:38000},
-  {n:"Maggiore",               ruolo:"Ufficiali",               limite:60, base:43000},
-  {n:"Tenente Colonnello",     ruolo:"Ufficiali",               limite:60, base:50000},
-  {n:"Colonnello",             ruolo:"Ufficiali",               limite:62, base:58000},
-  {n:"Generale di Brigata",    ruolo:"Ufficiali",               limite:63, base:72000},
-  {n:"Generale di Divisione",  ruolo:"Ufficiali",               limite:65, base:84000},
+  {n:"Carabiniere",            ruolo:"Appuntati e Carabinieri", limite:60, param:105.25, base:28500},
+  {n:"Carabiniere Scelto",     ruolo:"Appuntati e Carabinieri", limite:60, param:108.50, base:29200},
+  {n:"Appuntato",              ruolo:"Appuntati e Carabinieri", limite:60, param:112.00, base:30000},
+  {n:"Appuntato Scelto",       ruolo:"Appuntati e Carabinieri", limite:60, param:116.50, base:31000},
+  {n:"Appuntato Scelto Q.S.",  ruolo:"Appuntati e Carabinieri", limite:60, param:121.50, base:32300},
+  {n:"Vice Brigadiere",        ruolo:"Sovrintendenti",          limite:60, param:116.75, base:31000},
+  {n:"Brigadiere",             ruolo:"Sovrintendenti",          limite:60, param:121.50, base:32300},
+  {n:"Brigadiere Capo",        ruolo:"Sovrintendenti",          limite:60, param:124.25, base:33000},
+  {n:"Maresciallo",            ruolo:"Ispettori",               limite:60, param:118.00, base:32500},
+  {n:"Maresciallo Ordinario",  ruolo:"Ispettori",               limite:60, param:124.75, base:34000},
+  {n:"Maresciallo Capo",       ruolo:"Ispettori",               limite:60, param:131.00, base:35500},
+  {n:"Maresciallo Maggiore",   ruolo:"Ispettori",               limite:60, param:133.50, base:36500},
+  {n:"Luogotenente",           ruolo:"Ispettori",               limite:60, param:143.50, base:39500},
+  {n:"Sottotenente",           ruolo:"Ufficiali",               limite:60, param:136.75, base:37500},
+  {n:"Tenente",                ruolo:"Ufficiali",               limite:60, param:148.00, base:40500},
+  {n:"Capitano",               ruolo:"Ufficiali",               limite:60, param:150.50, base:41500},
+  {n:"Maggiore",               ruolo:"Ufficiali",               limite:60, param:166.75, base:46000},
+  {n:"Tenente Colonnello",     ruolo:"Ufficiali",               limite:60, param:184.75, base:51000},
+  {n:"Colonnello",             ruolo:"Ufficiali",               limite:62, param:204.75, base:57000},
+  {n:"Generale di Brigata",    ruolo:"Ufficiali",               limite:63, param:230.00, base:68000},
+  {n:"Generale di Divisione",  ruolo:"Ufficiali",               limite:65, param:260.00, base:80000},
 ];
 
 // Scaglioni IRPEF 2026 (3 aliquote)
