@@ -77,6 +77,33 @@
   .drop .state{font-size:.72rem;margin-top:4px;font-weight:600}
   .drop .state.ok{color:var(--ok)} .drop .state.err{color:var(--bad)} .drop .state.wait{color:var(--warn)}
 
+  /* ---------- Dati estratti ---------- */
+  .estratti{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px;
+    background:linear-gradient(180deg,#fff,#fbf9f2)}
+  .estratti h3{font-family:var(--font);font-size:.96rem;color:var(--navy);margin:0 0 9px;display:flex;align-items:center;gap:8px}
+  .estratti h3 svg{width:17px;height:17px}
+  .estratti .it{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    padding:7px 0;border-bottom:1px solid var(--line);font-size:.88rem}
+  .estratti .it:last-of-type{border-bottom:0}
+  .estratti .it .k{color:var(--muted)}
+  .estratti .it .v{font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;text-align:right}
+  .estratti .it .v .src{display:block;font-size:.66rem;color:var(--ok);font-weight:600}
+  .estratti .it .v.todo{color:var(--warn)}
+  .estratti .it .v.todo .src{color:var(--warn)}
+  .estratti .edit{margin-top:12px;width:100%;padding:10px;border:1px solid var(--gold);background:#fff;
+    color:var(--navy);border-radius:8px;cursor:pointer;font-size:.84rem;font-weight:600}
+  .estratti .edit:hover{background:#fffdf6}
+
+  /* ---------- Sezione manuale (backup) ---------- */
+  details.manual{margin-bottom:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  details.manual>summary{padding:12px 16px;cursor:pointer;font-family:var(--font);font-weight:600;color:var(--navy);
+    background:#faf8f1;list-style:none;display:flex;align-items:center;gap:8px}
+  details.manual>summary::-webkit-details-marker{display:none}
+  details.manual>summary::before{content:"▸";color:var(--gold)}
+  details.manual[open]>summary::before{content:"▾"}
+  details.manual>summary .mh{font-size:.72rem;color:var(--muted);font-weight:400;margin-left:auto}
+  details.manual .inner{padding:16px}
+
   /* ---------- Results ---------- */
   .placeholder{padding:46px 24px;text-align:center;color:var(--muted)}
   .placeholder svg{width:46px;height:46px;opacity:.3;margin-bottom:10px}
@@ -152,12 +179,12 @@
 
     <!-- ============ INPUT ============ -->
     <section class="card" aria-label="Dati di calcolo">
-      <div class="card-h"><span class="n">1</span><h2>I tuoi dati</h2></div>
+      <div class="card-h"><span class="n">1</span><h2>Carica i tuoi documenti</h2></div>
       <div class="card-b">
 
         <div class="import-box">
-          <h3>Compilazione rapida da file</h3>
-          <p class="sub">Carica i tuoi documenti per precompilare i campi. La lettura avviene <b>solo nel tuo browser</b>: nessun dato viene inviato altrove.</p>
+          <h3>Compilazione automatica da file</h3>
+          <p class="sub">È il modo consigliato: carica i due documenti e i dati vengono letti da soli. La lettura avviene <b>solo nel tuo browser</b>, nessun dato viene inviato altrove. In alternativa puoi compilare a mano qui sotto.</p>
 
           <label class="drop">
             <span class="dt">Estratto conto INPS (XML)</span>
@@ -173,6 +200,14 @@
             <span class="state" id="stPDF"></span>
           </label>
         </div>
+
+        <!-- Riepilogo dei dati usati per il calcolo -->
+        <div id="estratti" class="estratti"></div>
+
+        <!-- Compilazione manuale (backup) -->
+        <details class="manual" id="manualBox">
+          <summary>Compila o correggi a mano<span class="mh">grado · importi · scenari</span></summary>
+          <div class="inner">
 
         <div class="field">
           <label for="grado">Grado / qualifica
@@ -268,6 +303,9 @@
           <p class="sm muted" style="margin:2px 0 0">Le maggiorazioni (max <b>5 anni</b> complessivi) anticipano il <b>diritto</b> a pensione; aumentano l'importo solo nel sistema retributivo (anzianità ante-1996), non nel contributivo.</p>
         </details>
 
+          </div>
+        </details>
+
         <button class="calc-btn" id="go">Calcola il trattamento</button>
       </div>
     </section>
@@ -279,7 +317,7 @@
         <div class="placeholder">
           <svg viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="1.3">
             <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
-          <p>Compila i dati a sinistra e premi <b>Calcola</b> per vedere pensione, buonuscita e ausiliaria.</p>
+          <p>Carica i tuoi file (o compila a mano) e premi <b>Calcola</b> per vedere pensione, buonuscita e ausiliaria.</p>
         </div>
       </div>
     </section>
@@ -746,10 +784,10 @@ async function importPDF(file){
     const redd = firstCurrencyAfter(text,'Redditi di lavoro dipendent');
     const nasc = cfBirthDate(text);
     const done=[];
-    if(nasc){ $('nascita').value=nasc; done.push('data di nascita'); }
+    if(nasc){ $('nascita').value=nasc; window._nascDaFile=true; done.push('data di nascita'); }
     if(imp && setBase(imp)){ window._baseDaCU=true; done.push('imponibile pensionistico '+eur0(imp)+' € → base pensionabile'); }
-    if(redd) done.push('reddito dipendente '+eur0(redd)+' €');
-    if(done.length){ st.className='state ok'; st.textContent='✓ '+done.join(' · '); render(); }
+    if(redd){ window._redd=redd; done.push('reddito dipendente '+eur0(redd)+' €'); }
+    if(done.length){ st.className='state ok'; st.textContent='✓ '+done.join(' · '); aggiornaRiepilogo(); render(); }
     else { st.className='state err'; st.textContent='Nessun importo riconosciuto (può essere un PDF-immagine): compila a mano.'; }
   }catch(e){ st.className='state err'; st.textContent='PDF non leggibile: '+e.message+'. Compila a mano.'; }
 }
@@ -771,7 +809,7 @@ async function importXML(file){
       if(g&&m&&a) nasc = `${a}-${m.padStart(2,'0')}-${g.padStart(2,'0')}`;
     }
     if(!nasc) nasc = cfBirthDate(txt);
-    if(nasc){ $('nascita').value = nasc; info.push('data di nascita'); }
+    if(nasc){ $('nascita').value = nasc; window._nascDaFile=true; info.push('data di nascita'); }
     // Gestione Pubblica = servizio militare/statale: prima data utile + imponibile più recente
     let inizio=null, baseXML=null, annoMax=0;
     [...doc.querySelectorAll('RigaContributiGestionePubblica')].forEach(r=>{
@@ -786,12 +824,35 @@ async function importXML(file){
       const years=[...txt.matchAll(/\b(19[6-9]\d|20[0-3]\d)\b/g)].map(m=>+m[1]).filter(y=>y>=1960&&y<=2030);
       if(years.length) inizio=Math.min(...years);
     }
-    if(inizio){ $('arruol').value=inizio+'-01-01'; info.push('inizio servizio '+inizio); }
-    if(baseXML && !window._baseDaCU && setBase(baseXML))
-      info.push('imponibile '+eur0(baseXML)+' € → base (verifica)');
-    if(info.length){ st.className='state ok'; st.textContent='✓ '+info.join(' · '); render(); }
+    if(inizio){ $('arruol').value=inizio+'-01-01'; window._arruolDaFile=true; info.push('inizio servizio '+inizio); }
+    if(baseXML && !window._baseDaCU && setBase(baseXML)){ window._baseDaXML=true;
+      info.push('imponibile '+eur0(baseXML)+' € → base (verifica)'); }
+    if(info.length){ st.className='state ok'; st.textContent='✓ '+info.join(' · '); aggiornaRiepilogo(); render(); }
     else { st.className='state err'; st.textContent='Schema XML non riconosciuto: compila a mano.'; }
   }catch(e){ st.className='state err'; st.textContent='XML non leggibile: '+e.message; }
+}
+
+/* ===================================================================
+   RIEPILOGO DATI ESTRATTI
+=================================================================== */
+function fmtDate(iso){ if(!iso) return '—'; const p=iso.split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:iso; }
+function aggiornaRiepilogo(){
+  const el=$('estratti'); if(!el) return;
+  const g=GRADI[+$('grado').value];
+  const base=+$('base').value;
+  const annoServ=$('arruol').value ? $('arruol').value.split('-')[0] : '—';
+  const redd=window._redd;
+  const src = (cond,txt)=> cond?`<span class="src">${txt}</span>`:'';
+  const baseSrc = window._baseDaCU?'da CU · punto 18':(window._baseDaXML?'da estratto conto':'stima per grado · verifica');
+  el.innerHTML=`
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.6"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Dati usati per il calcolo</h3>
+    <div class="it"><span class="k">Grado</span><span class="v todo">${g.n}<span class="src">da impostare a mano</span></span></div>
+    <div class="it"><span class="k">Data di nascita</span><span class="v ${$('nascita').value?'':'todo'}">${fmtDate($('nascita').value)}${src(window._nascDaFile,'dai documenti')}</span></div>
+    <div class="it"><span class="k">Inizio servizio</span><span class="v">${annoServ}${src(window._arruolDaFile,'da estratto conto')}</span></div>
+    <div class="it"><span class="k">Base pensionabile</span><span class="v">${base?eur(base):'—'}<span class="src">${baseSrc}</span></span></div>
+    ${redd?`<div class="it"><span class="k">Reddito annuo (fiscale)</span><span class="v">${eur(redd)}<span class="src">da CU · punto 1</span></span></div>`:''}
+    <button class="edit" id="editBtn">Correggi o completa a mano ▸</button>`;
+  $('editBtn').addEventListener('click',()=>{ const m=$('manualBox'); m.open=true; m.scrollIntoView({behavior:'smooth',block:'start'}); });
 }
 
 /* ===================================================================
@@ -810,9 +871,13 @@ async function importXML(file){
   });
   sel.value = 1; // Carabiniere Scelto come default
 
-  // cambio grado → aggiorna base indicativa
-  sel.addEventListener('change',()=>{ $('base').value = GRADI[+sel.value].base; });
+  // cambio grado → aggiorna base indicativa (ma non sovrascrive un imponibile da file)
+  sel.addEventListener('change',()=>{
+    if(!window._baseDaCU && !window._baseDaXML) $('base').value = GRADI[+sel.value].base;
+    aggiornaRiepilogo();
+  });
   $('base').value = GRADI[1].base;
+  ['nascita','arruol','base'].forEach(id=> $(id).addEventListener('input', aggiornaRiepilogo));
 
   // segmenti scenario
   document.querySelectorAll('#scenSeg button').forEach(b=>{
@@ -828,6 +893,7 @@ async function importXML(file){
   $('filePDF').addEventListener('change', e=>{ if(e.target.files[0]) importPDF(e.target.files[0]); });
 
   $('go').addEventListener('click', render);
+  aggiornaRiepilogo();   // mostra subito i valori di partenza
 })();
 </script>
 </body>
