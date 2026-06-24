@@ -591,11 +591,10 @@ function scenari(){
   const arruol  = new Date($('arruol').value);
   const baseSnap = $('base').value, scenSnap = document.querySelector('#scenSeg button.on').dataset.s, etaSnap=$('etaAnt').value;
 
-  const list=[
-    {key:'anticipata', eta:Math.max(57,g.limite-2), lab:'Anticipata (−2)'},
-    {key:'limite', eta:g.limite, lab:'Limite d\'età'},
-    {key:'oltre', eta:Math.min(67,g.limite+3), lab:'Permanenza (+3)'},
-  ];
+  // i militari cessano al limite d'età del grado (poi ausiliaria): non esiste
+  // "permanenza" oltre il limite. Gli scenari mostrano uscite ≤ limite, valide.
+  const etas=[...new Set([Math.max(57,g.limite-3), Math.max(58,g.limite-1), g.limite])].sort((a,b)=>a-b);
+  const list=etas.map(e=>({eta:e, lab: e===g.limite ? "Al limite d'età" : 'Uscita a '+e+' anni'}));
   for(const it of list){
     // forza scenario anticipata con età custom
     document.querySelector('#scenSeg button.on').classList.remove('on');
