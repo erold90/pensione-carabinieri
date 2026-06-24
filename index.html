@@ -182,8 +182,14 @@
       <div class="card-h"><span class="n">1</span><h2>Carica i tuoi documenti</h2></div>
       <div class="card-b">
 
+        <div class="field" style="margin-bottom:16px">
+          <label for="grado"><b>1. Scegli il grado</b>
+            <span class="hint">— imposta limite d'età, stipendio tabellare (per la buonuscita) e base indicativa</span></label>
+          <select id="grado"></select>
+        </div>
+
         <div class="import-box">
-          <h3>Compilazione automatica da file</h3>
+          <h3>2. Carica i documenti</h3>
           <p class="sub">È il modo consigliato: carica i due documenti e i dati vengono letti da soli. La lettura avviene <b>solo nel tuo browser</b>, nessun dato viene inviato altrove. In alternativa puoi compilare a mano qui sotto.</p>
 
           <label class="drop">
@@ -208,12 +214,6 @@
         <details class="manual" id="manualBox">
           <summary>Compila o correggi a mano<span class="mh">grado · importi · scenari</span></summary>
           <div class="inner">
-
-        <div class="field">
-          <label for="grado">Grado / qualifica
-            <span class="hint">— imposta limite d'età e base indicativa</span></label>
-          <select id="grado"></select>
-        </div>
 
         <div class="row2">
           <div class="field">
@@ -352,7 +352,7 @@
 
       <details class="acc"><summary>Buonuscita — Indennità di Buonuscita (IBU), gestione ex-ENPAS</summary>
         <div class="body">
-          Per i militari assunti entro il 31/12/2000 si applica l'<b>IBU</b>: pari a <b>1/12 dell'80%</b> della retribuzione contributiva utile (con 13ª) <b>per ogni anno</b> di servizio. Contributo del 9,6% (7,1% ente + 2,5% dipendente). Concorrono anche i <b>6 scatti</b> e la maggiorazione del 18%.
+          L'<b>IBU</b> è pari a <b>1/12 dell'80%</b> della <b>retribuzione utile al TFS</b> (con 13ª) <b>per ogni anno</b> di servizio. <b>Attenzione</b>: la base del TFS <b>non</b> è la base pensionabile — è più bassa, perché comprende essenzialmente <b>stipendio tabellare + IIS + 13ª</b> e non le indennità di servizio. Il calcolatore la stima dallo <b>stipendio tabellare del grado</b> (parametro × 195,50 €); per questo è importante selezionare il grado corretto. Concorrono anche i <b>6 scatti</b> e la maggiorazione del 18% (qui non inclusi: l'importo reale può essere leggermente superiore). Contributo 9,6% (7,1% ente + 2,5% dipendente).
         </div>
       </details>
 
@@ -603,7 +603,11 @@ function calcola(){
   const pensioneNetta = pensioneLorda - irpef - add;
 
   // --- BUONUSCITA (IBU) ---
-  const ibu = (base * TETTO_RETR / 12) * anniServizio;
+  // si calcola sulla retribuzione utile al TFS (stipendio tabellare + 13ª, IIS
+  // conglobata), NON sulla base pensionabile che include indennità non-TFS.
+  const stipTab = (g.param||0) * PUNTO_PARAM;     // stipendio tabellare annuo del grado
+  const retrTFS = stipTab * 13/12;                // include la tredicesima
+  const ibu = (retrTFS / 12) * 0.80 * anniServizio;
 
   // --- AUSILIARIA ---
   // stipendio pari grado in servizio ≈ base / tasso-pensionabile (≈ base / 0.92)
@@ -754,6 +758,16 @@ function firstCurrencyAfter(text, label, win){
   return null;
 }
 
+// imponibile pensionistico (CU punto 18): nella sezione "Gestione Dipendenti
+// Pubblici" è il valore più alto (gli altri sono contributi/TFS, sue frazioni).
+// Robusto rispetto all'ordine dei campi e ai moduli di conguaglio.
+function cuImpPens(text){
+  const i = text.search(/gestione\s+dipendenti\s+pubblici|imponibile\s+pensionistic/i);
+  if(i<0) return null;
+  const vals = (text.slice(i).match(/\d{1,3}(?:\.\d{3})+,\d{2}/g)||[]).map(numIt).filter(v=>v>3000&&v<300000);
+  return vals.length ? Math.max(...vals) : null;
+}
+
 // ricava la data di nascita dal codice fiscale (sempre presente in CU ed estratto)
 function cfBirthDate(text){
   const m = text.match(/\b[A-Z]{6}\d{2}[A-EHLMPRST]\d{2}[A-Z]\d{3}[A-Z]\b/);
@@ -779,8 +793,7 @@ async function importPDF(file){
       text += ' ' + c.items.map(i=>i.str).join(' ');
     }
     text = text.replace(/\s+/g,' ');
-    const imp  = firstCurrencyAfter(text,'imponibile pensionistic')
-              || firstCurrencyAfter(text,'imponibile previdenzial');
+    const imp  = cuImpPens(text) || firstCurrencyAfter(text,'imponibile previdenzial');
     const redd = firstCurrencyAfter(text,'Redditi di lavoro dipendent');
     const nasc = cfBirthDate(text);
     const done=[];
@@ -846,7 +859,7 @@ function aggiornaRiepilogo(){
   const baseSrc = window._baseDaCU?'da CU · punto 18':(window._baseDaXML?'da estratto conto':'stima per grado · verifica');
   el.innerHTML=`
     <h3><svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.6"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Dati usati per il calcolo</h3>
-    <div class="it"><span class="k">Grado</span><span class="v todo">${g.n}<span class="src">da impostare a mano</span></span></div>
+    <div class="it"><span class="k">Grado</span><span class="v">${g.n}<span class="src">selezionato sopra</span></span></div>
     <div class="it"><span class="k">Data di nascita</span><span class="v ${$('nascita').value?'':'todo'}">${fmtDate($('nascita').value)}${src(window._nascDaFile,'dai documenti')}</span></div>
     <div class="it"><span class="k">Inizio servizio</span><span class="v">${annoServ}${src(window._arruolDaFile,'da estratto conto')}</span></div>
     <div class="it"><span class="k">Base pensionabile</span><span class="v">${base?eur(base):'—'}<span class="src">${baseSrc}</span></span></div>
