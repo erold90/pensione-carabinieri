@@ -188,14 +188,8 @@
           <select id="grado"></select>
         </div>
 
-        <div class="field" style="margin-bottom:16px">
-          <label for="riscatti"><b>2. Anni di laurea / leva riscattati</b>
-            <span class="hint">— SOLO riscatto di laurea o servizio di leva nella gestione militare. <b>Le maggiorazioni (volo/istituto) NON vanno qui</b>: usa la spunta «riscatta maggiorazioni». Lascia 0 se non hai riscatti.</span></label>
-          <input type="number" id="riscatti" value="0" min="0" max="30" step="0.5">
-        </div>
-
         <div class="import-box">
-          <h3>3. Carica i documenti</h3>
+          <h3>2. Carica i documenti</h3>
           <p class="sub">È il modo consigliato: carica i due documenti e i dati vengono letti da soli. La lettura avviene <b>solo nel tuo browser</b>, nessun dato viene inviato altrove. In alternativa puoi compilare a mano qui sotto.</p>
 
           <label class="drop">
@@ -236,6 +230,12 @@
           <label for="base">Base pensionabile annua lorda (€)
             <span class="hint">— dal cedolino NoiPA / mod. PA04 (voci pensionabili). Precompilata: modificala.</span></label>
           <input type="number" id="base" value="29000" min="0" step="100">
+        </div>
+
+        <div class="field">
+          <label for="riscatti">Anni di laurea / leva riscattati
+            <span class="hint">— SOLO riscatto di laurea o leva nella gestione militare (contano per pensione e buonuscita). <b>Le maggiorazioni NON vanno qui</b>. Lascia 0 se non hai riscatti.</span></label>
+          <input type="number" id="riscatti" value="0" min="0" max="30" step="0.5">
         </div>
 
         <div class="field">
