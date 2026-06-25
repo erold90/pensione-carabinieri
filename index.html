@@ -189,8 +189,8 @@
         </div>
 
         <div class="field" style="margin-bottom:16px">
-          <label for="riscatti"><b>2. Anni riscattati nell'Arma</b>
-            <span class="hint">— laurea o servizio di leva riscattati nella gestione militare: contano per pensione <b>e</b> buonuscita. Lascia 0 se non sai.</span></label>
+          <label for="riscatti"><b>2. Anni di laurea / leva riscattati</b>
+            <span class="hint">— SOLO riscatto di laurea o servizio di leva nella gestione militare. <b>Le maggiorazioni (volo/istituto) NON vanno qui</b>: usa la spunta «riscatta maggiorazioni». Lascia 0 se non hai riscatti.</span></label>
           <input type="number" id="riscatti" value="0" min="0" max="30" step="0.5">
         </div>
 
@@ -797,6 +797,10 @@ function render(){
   }
   if(r.costoRiscatto>0){
     html += `<div class="note"><b>Riscatto maggiorazioni attivo.</b> Hai incluso il riscatto di <b>${r.maggMontante.toFixed(1)} anni</b> di maggiorazione ai fini del montante (già conteggiati nell'importo sopra): costo stimato una tantum <b>~${eur(r.costoRiscatto)}</b>, rateizzabile senza interessi. Chiedi il preventivo ufficiale a INPS/patronato.</div>`;
+  }
+  const _risc = +$('riscatti').value||0;
+  if(_risc>0){
+    html += `<div class="note" style="border-color:#f0c9a8;background:#fdeee2"><b>⚠ Verifica il campo «laurea/leva».</b> Hai indicato <b>${_risc} anni</b> riscattati di laurea/leva: contano anche per la <b>buonuscita</b>. Se invece intendevi le <b>maggiorazioni</b> (volo/istituto/campagna), rimetti il campo a <b>0</b> e usa la spunta «riscatta maggiorazioni» — quelle aumentano la pensione ma <b>non</b> la buonuscita.</div>`;
   }
   html += `<div class="note">
     <b>Nota.</b> Base usata: <b>${eur(r.baseAF)}</b>/anno${r.af>0?' (di cui '+eur(r.af)+' di assegno funzionale)':''}. Per una stima attendibile inserisci il tuo
