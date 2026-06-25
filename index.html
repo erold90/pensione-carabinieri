@@ -189,8 +189,8 @@
         </div>
 
         <div class="field" style="margin-bottom:16px">
-          <label for="riscatti"><b>2. Anni riscattati / ricongiunti</b>
-            <span class="hint">— riscatto (laurea, leva) + cumulo di contributi in altre gestioni. Lascia 0 se non sai.</span></label>
+          <label for="riscatti"><b>2. Anni riscattati nell'Arma</b>
+            <span class="hint">— laurea o servizio di leva riscattati nella gestione militare: contano per pensione <b>e</b> buonuscita. Lascia 0 se non sai.</span></label>
           <input type="number" id="riscatti" value="0" min="0" max="30" step="0.5">
         </div>
 
@@ -236,6 +236,12 @@
           <label for="base">Base pensionabile annua lorda (€)
             <span class="hint">— dal cedolino NoiPA / mod. PA04 (voci pensionabili). Precompilata: modificala.</span></label>
           <input type="number" id="base" value="29000" min="0" step="100">
+        </div>
+
+        <div class="field">
+          <label for="cumuloRG">Anni regime generale (cumulo)
+            <span class="hint">— contributi nel privato uniti col cumulo: contano <b>solo per la pensione</b>, non per la buonuscita. Compilato dall'estratto conto.</span></label>
+          <input type="number" id="cumuloRG" value="0" min="0" max="40" step="0.5">
         </div>
 
         <div class="field">
@@ -383,7 +389,7 @@
             <li><b>Totalizzazione</b> (D.Lgs. 42/2006) — gratuita, ma ricalcola tutto col sistema contributivo.</li>
             <li><b>Ricongiunzione</b> (L. 29/1979) — onerosa: trasferisce i contributi in un'unica gestione.</li>
           </ul>
-          Caricando l'estratto conto, il riepilogo mostra gli anni di regime generale rilevati e un pulsante per includerli (cumulo). <b>Attenzione</b>: vanno esclusi i periodi che si <b>sovrappongono</b> al servizio — per il conteggio esatto rivolgiti a un patronato.
+          Caricando l'estratto conto, il riepilogo mostra gli anni di regime generale e un pulsante per includerli (cumulo). <b>Distinzione fondamentale</b>: gli anni del privato in <b>cumulo contano solo per la pensione</b> (come quota separata liquidata dalla gestione privata), <b>non per la buonuscita</b> — il TFS militare si basa solo sul servizio pubblico e sugli eventuali riscatti fatti nella gestione militare (laurea, leva). Solo la <b>ricongiunzione</b> (onerosa) porta i periodi privati anche nel TFS. Vanno comunque esclusi i periodi <b>sovrapposti</b> al servizio: per il conteggio esatto rivolgiti a un patronato.
         </div>
       </details>
 
@@ -530,7 +536,8 @@ function calcola(){
   const nascita = new Date($('nascita').value);
   const arruol  = new Date($('arruol').value);
   const base    = +$('base').value;
-  const riscatti= +$('riscatti').value || 0;
+  const riscatti= +$('riscatti').value || 0;   // riscatti nell'Arma (laurea/leva): pensione + TFS
+  const cumuloRG= +$('cumuloRG').value || 0;    // regime generale (cumulo): solo pensione
   const crescita= (+$('crescita').value||0)/100;
   const capit   = (+$('capit').value||0)/100;
   const addiz   = (+$('addiz').value||0)/100;
@@ -548,7 +555,7 @@ function calcola(){
   if(scen==='limite')      etaUscita = g.limite;
   else if(scen==='anticipata') etaUscita = Math.max(50, Math.min(g.limite, +$('etaAnt').value));
   else { // max anzianità: ~42 anni ai fini del DIRITTO (le maggiorazioni anticipano)
-    const etaAl42 = anniTra(nascita, arruol) + (42 - riscatti - maggiorazione);
+    const etaAl42 = anniTra(nascita, arruol) + (42 - riscatti - cumuloRG - maggiorazione);
     etaUscita = Math.min(g.limite, Math.max(57, Math.round(etaAl42)));
   }
   const dataUscita = new Date(nascita); dataUscita.setFullYear(nascita.getFullYear()+etaUscita);
@@ -557,15 +564,17 @@ function calcola(){
   // se nota l'anzianità militare EFFETTIVA (somma dei periodi dall'estratto INPS),
   // si proietta da lì fino all'uscita; così le carriere frammentate (con buchi nel
   // servizio) non vengono sovrastimate. Altrimenti stima da (uscita − arruolamento).
-  let anniServizio;
+  let anniBase;   // servizio militare effettivo (esclusi riscatti e cumulo)
   if(window._anzMil != null && window._anzMilY){
     const etaEstratto = window._anzMilY - nascita.getFullYear();
-    anniServizio = window._anzMil + Math.max(0, etaUscita - etaEstratto) + riscatti;
+    anniBase = window._anzMil + Math.max(0, etaUscita - etaEstratto);
   } else {
-    anniServizio = anniTra(arruol, dataUscita) + riscatti;
+    anniBase = anniTra(arruol, dataUscita);
   }
-  if(anniServizio < 0) anniServizio = 0;
-  const anniDiritto = anniServizio + maggiorazione;   // ai fini del diritto a pensione
+  if(anniBase < 0) anniBase = 0;
+  const anniTFS = anniBase + riscatti;                 // buonuscita: servizio + riscatti Arma
+  let anniServizio = anniTFS + cumuloRG;               // pensione: + cumulo regime generale
+  const anniDiritto = anniServizio + maggiorazione;    // ai fini del diritto a pensione
 
   // --- ripartizione retributivo / contributivo ---
   const fine95 = new Date('1995-12-31');
@@ -623,7 +632,7 @@ function calcola(){
   // NON è la base pensionabile, che include indennità non utili al TFS.
   const stipTab = (g.param||0) * PUNTO_PARAM;
   const baseTFS = window._impTFS || (stipTab * 13/12 * 0.80);
-  const ibu = (baseTFS / 12) * anniServizio;
+  const ibu = (baseTFS / 12) * anniTFS;   // solo servizio + riscatti Arma (no cumulo RG)
 
   // --- AUSILIARIA ---
   // stipendio pari grado in servizio ≈ base / tasso-pensionabile (≈ base / 0.92)
@@ -632,7 +641,7 @@ function calcola(){
       ? Math.max(0, 0.50 * (stipPariGrado - pensioneLorda)) : 0;
 
   return {
-    grado:g, etaUscita, dataUscita, anniServizio, anniDiritto, maggiorazione,
+    grado:g, etaUscita, dataUscita, anniServizio, anniTFS, cumuloRG, anniDiritto, maggiorazione,
     anniAnte96, anniContr, sistema, aliquotaRetr, quotaRetr, montante, cf, quotaContr,
     pensioneLorda, pensioneNetta, irpef, add, tassoSost, capApplicato,
     ibu, indAusiliariaAnnua, stipPariGrado, base, scen
@@ -738,6 +747,9 @@ function render(){
 
   if(r.maggiorazione>0 && r.sistema==='contributivo'){
     html += `<div class="note"><b>Maggiorazioni.</b> I <b>${r.maggiorazione.toFixed(1)} anni</b> di maggiorazione portano l'anzianità utile a <b>${r.anniDiritto.toFixed(1)} anni ai fini del diritto</b> (puoi accedere prima alla pensione), ma nel sistema <b>contributivo non aumentano l'importo</b> dell'assegno: valgono sulla misura solo per la quota retributiva ante-1996.</div>`;
+  }
+  if(r.cumuloRG>0){
+    html += `<div class="note"><b>Cumulo regime generale.</b> I <b>${r.cumuloRG.toFixed(1)} anni</b> di contributi privati contano per la pensione (${r.anniServizio.toFixed(1)} anni totali) ma <b>non per la buonuscita</b>, calcolata su <b>${r.anniTFS.toFixed(1)} anni</b> di solo servizio militare. Col cumulo questi anni danno una <b>quota separata</b> liquidata dalla gestione privata: l'importo reale dipende dalla retribuzione di quei periodi (qui approssimato sulla base militare).</div>`;
   }
   html += `<div class="note">
     <b>Nota.</b> Base pensionabile usata: <b>${eur(r.base)}</b>/anno. Per una stima attendibile inserisci il tuo
@@ -916,7 +928,7 @@ function aggiornaRiepilogo(){
     ${window._anniRG>0.1?`<button class="edit" id="inclRG" style="background:#fbf6e9;border-color:var(--gold)">${window._inclRG?'✓ inclusi nel calcolo (cumulo)':'Includi ~'+window._anniRG.toFixed(1)+' anni privati nel calcolo (cumulo) ▸'}</button>`:''}
     <button class="edit" id="editBtn">Correggi o completa a mano ▸</button>`;
   $('editBtn').addEventListener('click',()=>{ const m=$('manualBox'); m.open=true; m.scrollIntoView({behavior:'smooth',block:'start'}); });
-  if($('inclRG')) $('inclRG').addEventListener('click',()=>{ $('riscatti').value=window._anniRG.toFixed(1); window._inclRG=true; aggiornaRiepilogo(); render(); });
+  if($('inclRG')) $('inclRG').addEventListener('click',()=>{ $('cumuloRG').value=window._anniRG.toFixed(1); window._inclRG=true; aggiornaRiepilogo(); render(); });
 }
 
 /* ===================================================================
