@@ -301,7 +301,11 @@
               <input type="number" id="maggVolo" value="0" min="0" max="40" step="1">
             </div>
           </div>
-          <p class="sm muted" style="margin:2px 0 0">Le maggiorazioni (max <b>5 anni</b> complessivi) anticipano il <b>diritto</b> a pensione; aumentano l'importo solo nel sistema retributivo (anzianità ante-1996), non nel contributivo. La ricongiunzione/cumulo di contributi va invece nel campo <b>«Anni riscattati / ricongiunti»</b> in cima.</p>
+          <label style="display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;font-size:.84rem;cursor:pointer">
+            <input type="checkbox" id="riscattaMagg" style="width:auto;margin-top:3px">
+            <span><b>Riscatta le maggiorazioni ai fini del montante</b> — le trasforma in contribuzione effettiva che <b>aumenta l'importo</b> (costo ~8,8%, cioè un quarto del riscatto pieno).</span>
+          </label>
+          <p class="sm muted" style="margin:8px 0 0">Senza riscatto, le maggiorazioni (max <b>5 anni</b>) anticipano solo il <b>diritto</b> a pensione, non l'importo (nel contributivo). La ricongiunzione/cumulo di contributi va invece nel campo <b>«Anni riscattati / ricongiunti»</b> in cima.</p>
         </details>
 
           </div>
@@ -378,6 +382,14 @@
             <li>tetto <b>complessivo di 5 anni</b> dal 1/1/1998 (D.Lgs. 165/97).</li>
           </ul>
           <b>Distinzione fondamentale:</b> nel sistema <b>retributivo</b> (anzianità ante-1996) la maggiorazione vale sia sul <b>diritto</b> sia sulla <b>misura</b> (importo); nel sistema <b>contributivo</b> vale <b>solo sul diritto</b> — anticipa l'accesso ma non aumenta l'assegno (Circ. INPS · giurisprudenza Corte dei Conti). La <b>ricongiunzione/computo</b> porta invece nella gestione i contributi versati in altre casse (es. periodi nel settore privato).
+        </div>
+      </details>
+
+      <details class="acc"><summary>Assegno funzionale e riscatto delle maggiorazioni</summary>
+        <div class="body">
+          <b>Assegno funzionale</b> — somma aggiuntiva erogata <b>d'ufficio</b> (senza domanda) al raggiungimento di <b>17, 27 e 32 anni</b> di servizio nell'Arma, salvo demerito nell'ultimo triennio. È <b>pensionabile e utile al TFS</b>, quindi aumenta sia pensione sia buonuscita. Importi 2024 per il ruolo Appuntati/Carabinieri: 17 anni ≈ 1.448 €, 27 anni ≈ 2.950 €, 32 anni ≈ 3.392 €/anno (più alti per Sovrintendenti, Ispettori, Ufficiali). Il calcolatore lo aggiunge in automatico in base agli anni di servizio all'uscita.
+          <br><br>
+          <b>Riscatto delle maggiorazioni</b> — di norma le maggiorazioni 1/5 e 1/3, nel contributivo, valgono solo per il diritto. Riscattandole (facoltà dei militari in servizio) si trasformano in <b>montante contributivo effettivo</b> che <b>aumenta l'importo</b>. Il costo è agevolato: <b>~8,8%</b> della retribuzione per anno (un quarto del riscatto pieno, perché pari al rapporto 8,8/33 tra quota lavoratore e totale), rateizzabile senza interessi. Spunta l'opzione nei parametri delle maggiorazioni per vederne l'effetto e il costo stimato.
         </div>
       </details>
 
@@ -509,6 +521,22 @@ const ALIQ_COMPUTO = 0.33;   // aliquota di computo contributiva dip. pubblici
 const REND_MILITARE = 0.0244; // aliquota di rendimento retributiva (art.54)
 const TETTO_RETR = 0.80;      // tetto aliquota retributiva
 
+// Assegno funzionale (€/anno) per ruolo, a 17/27/32 anni di servizio nell'Arma.
+// Pensionabile e utile al TFS. Importi comparto sicurezza 2024 (Ufficiali: stima).
+const ASSEGNO_FUNZ = {
+  'Appuntati e Carabinieri': {17:1448.40, 27:2949.53, 32:3392.30},
+  'Sovrintendenti':          {17:1800.20, 27:3018.20, 32:3470.98},
+  'Ispettori':               {17:1829.40, 27:3070.50, 32:3531.03},
+  'Ufficiali':               {17:2000.00, 27:3300.00, 32:3800.00}
+};
+function assegnoFunz(ruolo, anniServizio){
+  const t = ASSEGNO_FUNZ[ruolo] || ASSEGNO_FUNZ['Appuntati e Carabinieri'];
+  if(anniServizio>=32) return t[32];
+  if(anniServizio>=27) return t[27];
+  if(anniServizio>=17) return t[17];
+  return 0;
+}
+
 /* ===================================================================
    UTILITY
 =================================================================== */
@@ -543,6 +571,7 @@ function calcola(){
   const addiz   = (+$('addiz').value||0)/100;
   const maggIst = +$('maggIst').value || 0;
   const maggVolo= +$('maggVolo').value || 0;
+  const riscattaMagg = $('riscattaMagg') && $('riscattaMagg').checked; // riscatto magg. ai fini del montante
   const scen    = document.querySelector('#scenSeg button.on').dataset.s;
 
   if(isNaN(nascita) || isNaN(arruol) || !base){ return null; }
@@ -576,6 +605,16 @@ function calcola(){
   let anniServizio = anniTFS + cumuloRG;               // pensione: + cumulo regime generale
   const anniDiritto = anniServizio + maggiorazione;    // ai fini del diritto a pensione
 
+  // --- assegno funzionale (pensionabile + utile al TFS) maturato all'uscita ---
+  const af = assegnoFunz(g.ruolo, anniTFS);            // assegno funzionale a fine carriera
+  // se la base viene dalla CU può già includere l'assegno attuale: aggiungo solo l'incremento
+  const afGia = window._baseDaCU ? assegnoFunz(g.ruolo, window._anzMil||0) : 0;
+  const afIncr = Math.max(0, af - afGia);
+  const baseAF = base + afIncr;                        // base pensionabile con assegno funzionale
+  // riscatto maggiorazioni: trasforma la maggiorazione in montante contributivo effettivo
+  const maggMontante = riscattaMagg ? maggiorazione : 0;
+  const costoRiscatto = riscattaMagg ? 0.088 * baseAF * maggiorazione : 0; // 8,8% (=27% del costo pieno)
+
   // --- ripartizione retributivo / contributivo ---
   const fine95 = new Date('1995-12-31');
   let anniAnte96;
@@ -597,16 +636,17 @@ function calcola(){
   let aliquotaRetr = 0, quotaRetr = 0;
   if(anniAnte96 > 0){
     aliquotaRetr = Math.min(TETTO_RETR, (anniAnte96 + maggiorazione) * REND_MILITARE);
-    quotaRetr = base * aliquotaRetr;
+    quotaRetr = baseAF * aliquotaRetr;
   }
 
   // --- QUOTA CONTRIBUTIVA (montante × coefficiente) ---
-  // ricostruzione del montante anno per anno, retrocedendo lo stipendio
+  // ricostruzione del montante anno per anno, retrocedendo lo stipendio; le
+  // maggiorazioni riscattate si aggiungono come anni di contribuzione effettiva.
   let montante = 0;
-  const anniC = Math.round(anniContr);
+  const anniC = Math.round(anniContr + maggMontante);
   for(let k=0;k<anniC;k++){
     // stipendio dell'anno (k=0 = ultimo anno; più indietro = più basso)
-    const stipAnno = base / Math.pow(1+crescita, (anniC-1-k));
+    const stipAnno = baseAF / Math.pow(1+crescita, (anniC-1-k));
     montante += stipAnno * ALIQ_COMPUTO;
     montante *= (1+capit); // capitalizzazione fino all'uscita
   }
@@ -616,10 +656,10 @@ function calcola(){
   // --- PENSIONE ---
   let pensioneLorda = quotaRetr + quotaContr;
   // cap di garanzia: non superi l'80% della base
-  const capPensione = base * TETTO_RETR;
+  const capPensione = baseAF * TETTO_RETR;
   let capApplicato = false;
   if(pensioneLorda > capPensione){ pensioneLorda = capPensione; capApplicato = true; }
-  const tassoSost = pensioneLorda / base; // tasso di sostituzione
+  const tassoSost = pensioneLorda / baseAF; // tasso di sostituzione
 
   // IRPEF
   const irpef = irpefLorda(pensioneLorda);
@@ -631,12 +671,12 @@ function calcola(){
   // disponibile, altrimenti stimata dallo stipendio tabellare del grado (×13/12×80%).
   // NON è la base pensionabile, che include indennità non utili al TFS.
   const stipTab = (g.param||0) * PUNTO_PARAM;
-  const baseTFS = window._impTFS || (stipTab * 13/12 * 0.80);
+  const baseTFS = (window._impTFS || (stipTab * 13/12 * 0.80)) + afIncr*0.80; // AF utile al TFS all'80%
   const ibu = (baseTFS / 12) * anniTFS;   // solo servizio + riscatti Arma (no cumulo RG)
 
   // --- AUSILIARIA ---
   // stipendio pari grado in servizio ≈ base / tasso-pensionabile (≈ base / 0.92)
-  const stipPariGrado = base / 0.92;
+  const stipPariGrado = baseAF / 0.92;
   const indAusiliariaAnnua = scen==='limite'
       ? Math.max(0, 0.50 * (stipPariGrado - pensioneLorda)) : 0;
 
@@ -644,7 +684,7 @@ function calcola(){
     grado:g, etaUscita, dataUscita, anniServizio, anniTFS, cumuloRG, anniDiritto, maggiorazione,
     anniAnte96, anniContr, sistema, aliquotaRetr, quotaRetr, montante, cf, quotaContr,
     pensioneLorda, pensioneNetta, irpef, add, tassoSost, capApplicato,
-    ibu, indAusiliariaAnnua, stipPariGrado, base, scen
+    ibu, indAusiliariaAnnua, stipPariGrado, base, baseAF, af, maggMontante, costoRiscatto, scen
   };
 }
 
@@ -751,8 +791,15 @@ function render(){
   if(r.cumuloRG>0){
     html += `<div class="note"><b>Cumulo regime generale.</b> I <b>${r.cumuloRG.toFixed(1)} anni</b> di contributi privati contano per la pensione (${r.anniServizio.toFixed(1)} anni totali) ma <b>non per la buonuscita</b>, calcolata su <b>${r.anniTFS.toFixed(1)} anni</b> di solo servizio militare. Col cumulo questi anni danno una <b>quota separata</b> liquidata dalla gestione privata: l'importo reale dipende dalla retribuzione di quei periodi (qui approssimato sulla base militare).</div>`;
   }
+  if(r.af>0){
+    const soglia = r.anniTFS>=32?32:r.anniTFS>=27?27:17;
+    html += `<div class="note"><b>Assegno funzionale (${soglia} anni).</b> A fine carriera maturi l'assegno funzionale: <b>+${eur(r.af)}/anno</b>, automatico e senza demerito. È incluso nella base pensionabile (${eur(r.baseAF)}) e conta anche per la buonuscita.</div>`;
+  }
+  if(r.costoRiscatto>0){
+    html += `<div class="note"><b>Riscatto maggiorazioni attivo.</b> Hai incluso il riscatto di <b>${r.maggMontante.toFixed(1)} anni</b> di maggiorazione ai fini del montante (già conteggiati nell'importo sopra): costo stimato una tantum <b>~${eur(r.costoRiscatto)}</b>, rateizzabile senza interessi. Chiedi il preventivo ufficiale a INPS/patronato.</div>`;
+  }
   html += `<div class="note">
-    <b>Nota.</b> Base pensionabile usata: <b>${eur(r.base)}</b>/anno. Per una stima attendibile inserisci il tuo
+    <b>Nota.</b> Base usata: <b>${eur(r.baseAF)}</b>/anno${r.af>0?' (di cui '+eur(r.af)+' di assegno funzionale)':''}. Per una stima attendibile inserisci il tuo
     <b>imponibile previdenziale reale</b> (cedolino NoiPA o mod. PA04). Capitalizzazione e crescita stipendio sono
     assunzioni modificabili nei parametri avanzati. La quota contributiva è una ricostruzione semplificata del montante.
   </div>`;
